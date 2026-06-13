@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from cockpit_guardian.config_manager import ConfigManager
-from cockpit_guardian.models import CockpitDevice, DeviceBus, DeviceKind, HidIdentity, Priority, Settings
+from cockpit_guardian.models import CockpitDevice, DeviceBus, DeviceKind, HidIdentity, Priority, Settings, UsbConnectionInfo
 from cockpit_guardian.paths import AppPaths
 
 
@@ -31,6 +31,7 @@ class ConfigManagerTests(unittest.TestCase):
                 bus=DeviceBus.HID,
                 priority=Priority.REQUIRED,
                 hid=HidIdentity(name="Wheelbase", vid="1234", pid="ABCD", joystick_order=1),
+                usb=UsbConnectionInfo(label="USB 3.x capable path", usb_generation="USB 3.x", confidence="medium"),
             )
 
             config.create_snapshot("Rig", [device], [], ["Wheelbase"])
@@ -40,6 +41,7 @@ class ConfigManagerTests(unittest.TestCase):
         self.assertEqual(loaded.profile_name, "Rig")
         self.assertEqual(loaded.devices[0].kind, DeviceKind.WHEEL)
         self.assertEqual(loaded.devices[0].hid.vid, "1234")
+        self.assertEqual(loaded.devices[0].usb.usb_generation, "USB 3.x")
         self.assertEqual(loaded.joystick_order, ["Wheelbase"])
 
     def test_backups_created_in_same_second_are_unique(self):

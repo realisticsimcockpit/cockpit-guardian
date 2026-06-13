@@ -38,6 +38,7 @@ Windows details are kept behind service classes:
 - `ComPortManager`: COM restore operations.
 - `JoystickOrderManager`: joystick order snapshot and restore hook.
 - `UsbHealthMonitor`: USB event summaries.
+- `UsbTopologyDetector`: best-effort USB 2/3 path information for Dashboard devices.
 - `SoftwareDetector`: simracing software detection.
 - `SimHubIntegration`: SimHub availability and FFB clipping hook.
 - `RestoreEngine`: restore orchestration and rollback.

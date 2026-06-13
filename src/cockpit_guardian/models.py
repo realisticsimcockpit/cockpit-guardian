@@ -60,6 +60,17 @@ class SoftwareState(str, Enum):
 
 
 @dataclass(slots=True)
+class UsbConnectionInfo:
+    label: str = "USB speed unknown"
+    usb_generation: str | None = None
+    negotiated_speed_mbps: int | None = None
+    hub_or_port: str | None = None
+    confidence: str = "unknown"
+    source: str = "not detected"
+    note: str | None = None
+
+
+@dataclass(slots=True)
 class SerialIdentity:
     current_com: str | None = None
     vid: str | None = None
@@ -92,6 +103,7 @@ class CockpitDevice:
     custom_name: str | None = None
     serial: SerialIdentity | None = None
     hid: HidIdentity | None = None
+    usb: UsbConnectionInfo | None = None
 
     @property
     def label(self) -> str:
@@ -243,6 +255,10 @@ def hid_from_dict(data: dict[str, Any] | None) -> HidIdentity | None:
     return None if data is None else dataclass_from_dict(HidIdentity, data)
 
 
+def usb_from_dict(data: dict[str, Any] | None) -> UsbConnectionInfo | None:
+    return None if data is None else dataclass_from_dict(UsbConnectionInfo, data)
+
+
 def device_from_dict(data: dict[str, Any]) -> CockpitDevice:
     return CockpitDevice(
         id=data["id"],
@@ -253,6 +269,7 @@ def device_from_dict(data: dict[str, Any]) -> CockpitDevice:
         custom_name=data.get("custom_name"),
         serial=serial_from_dict(data.get("serial")),
         hid=hid_from_dict(data.get("hid")),
+        usb=usb_from_dict(data.get("usb")),
     )
 
 

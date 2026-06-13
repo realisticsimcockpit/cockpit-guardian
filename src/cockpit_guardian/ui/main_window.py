@@ -130,12 +130,13 @@ class MainWindow(QMainWindow):
         backup_layout.addStretch(1)
         layout.addLayout(backup_layout)
 
-        self.device_table = QTableWidget(0, 4)
-        self.device_table.setHorizontalHeaderLabels(["Device", "Role", "Status", "Detail"])
+        self.device_table = QTableWidget(0, 5)
+        self.device_table.setHorizontalHeaderLabels(["Device", "Role", "Status", "USB", "Detail"])
         self.device_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.device_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.device_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.device_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self.device_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.device_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
         self.device_table.verticalHeader().setVisible(False)
         self.device_table.setAlternatingRowColors(True)
         layout.addWidget(self.device_table, 3)
@@ -407,15 +408,26 @@ class MainWindow(QMainWindow):
             self.device_table.insertRow(row)
             device = check.expected or check.detected
             role = device.kind.value.replace("_", " ").title() if device else "Unknown"
+            usb = self._usb_summary(device)
             detail = check.detail or ""
             if check.ffb_clipping_percent is not None:
                 detail = f"FFB clipping {check.ffb_clipping_percent:.0f}% - Reduce in-game FFB gain"
-            values = [check.label, role, check.severity.value.replace("_", " ").title(), detail or check.message]
+            values = [check.label, role, check.severity.value.replace("_", " ").title(), usb, detail or check.message]
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 if column == 2:
                     item.setForeground(QColor(SEVERITY_COLORS.get(check.severity, "#e5e7eb")))
                 self.device_table.setItem(row, column, item)
+
+    @staticmethod
+    def _usb_summary(device) -> str:
+        if not device or not device.usb:
+            return "Unknown"
+        if device.usb.negotiated_speed_mbps:
+            return f"{device.usb.label} ({device.usb.negotiated_speed_mbps} Mbps)"
+        if device.usb.confidence and device.usb.confidence != "unknown":
+            return f"{device.usb.label} ({device.usb.confidence})"
+        return device.usb.label
 
     def _update_joystick(self, report: CheckReport) -> None:
         order = report.joystick_order.current or report.joystick_order.expected
@@ -550,6 +562,11 @@ class MainWindow(QMainWindow):
                     for key, value in to_plain(device.hid).items():
                         hid.addChild(QTreeWidgetItem([key, str(value)]))
                     node.addChild(hid)
+                if device.usb:
+                    usb = QTreeWidgetItem(["USB", device.usb.label])
+                    for key, value in to_plain(device.usb).items():
+                        usb.addChild(QTreeWidgetItem([key, str(value)]))
+                    node.addChild(usb)
                 snap.addChild(node)
             self.advanced_tree.addTopLevelItem(snap)
         else:

@@ -21,6 +21,7 @@ This repository contains a working first version with:
 - Save Configuration to a JSON snapshot.
 - Automatic check on launch and manual Check Now.
 - Device comparison for serial/COM and HID/joystick devices.
+- Best-effort USB 2/3 path display on Dashboard device rows.
 - Joystick order status on the Dashboard.
 - SimHub availability and FFB clipping hook.
 - Software detection for common simracing tools.

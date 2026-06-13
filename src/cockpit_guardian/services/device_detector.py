@@ -5,8 +5,9 @@ import os
 import time
 from dataclasses import dataclass, field
 
-from ..models import CockpitDevice, DeviceBus, DeviceKind, HidIdentity, SerialIdentity
+from ..models import CockpitDevice, DeviceBus, DeviceKind, HidIdentity, SerialIdentity, UsbConnectionInfo
 from .integration_notices import ARDUINO_VIDS, ESPRESSIF_VIDS, generic_usb_serial_bridge_name, normalize_usb_id
+from .usb_topology import UsbTopologyDetector
 from .windows_util import parse_vid_pid, run_powershell_json
 
 
@@ -55,13 +56,14 @@ class DeviceDetector:
     _hid_cache_at: float = 0.0
     _serial_metadata_cache: dict[str, dict[str, str | None]] = field(default_factory=dict)
     _serial_metadata_cache_at: float = 0.0
+    _usb_topology: UsbTopologyDetector = field(default_factory=UsbTopologyDetector)
 
     def detect_all(self, include_windows_metadata: bool = False, hid_cache_ttl_seconds: int = 5) -> list[CockpitDevice]:
         if os.environ.get("COCKPIT_GUARDIAN_MOCK") == "1":
             return self._mock_devices()
         devices = self.detect_serial_devices(include_windows_metadata=include_windows_metadata)
         devices.extend(self.detect_hid_devices(cache_ttl_seconds=hid_cache_ttl_seconds))
-        return devices
+        return self._usb_topology.annotate_devices(devices, include_windows_metadata=include_windows_metadata)
 
     def detect_serial_devices(self, include_windows_metadata: bool = False) -> list[CockpitDevice]:
         try:
@@ -176,6 +178,13 @@ class DeviceDetector:
                 kind=DeviceKind.WHEEL,
                 bus=DeviceBus.HID,
                 hid=HidIdentity(name="Simagic Alpha Ultimate", vid="0483", pid="A355", joystick_order=1),
+                usb=UsbConnectionInfo(
+                    label="USB 2.0 path",
+                    usb_generation="USB 2.0",
+                    negotiated_speed_mbps=480,
+                    confidence="medium",
+                    source="mock topology",
+                ),
             ),
             CockpitDevice(
                 id="mock-pedals",
@@ -183,6 +192,13 @@ class DeviceDetector:
                 kind=DeviceKind.PEDALS,
                 bus=DeviceBus.HID,
                 hid=HidIdentity(name="mBooster Active Pedals", vid="3416", pid="0301", joystick_order=2),
+                usb=UsbConnectionInfo(
+                    label="USB 3.x capable path",
+                    usb_generation="USB 3.x",
+                    confidence="medium",
+                    source="mock topology",
+                    note="Path capability, not negotiated speed.",
+                ),
             ),
             CockpitDevice(
                 id="mock-ddu",
@@ -200,6 +216,12 @@ class DeviceDetector:
                     location_path="MOCK-USB-1",
                     device_instance_id="USB\\VID_2341&PID_0043\\CG-MOCK-DDU",
                 ),
+                usb=UsbConnectionInfo(
+                    label="USB serial bridge",
+                    confidence="low",
+                    source="mock Arduino serial",
+                    note="Negotiated speed requires a USBView-level hub query.",
+                ),
             ),
             CockpitDevice(
                 id="mock-wind",
@@ -216,6 +238,12 @@ class DeviceDetector:
                     friendly_name="Wind Simulator",
                     location_path="MOCK-USB-2",
                     device_instance_id="USB\\VID_1A86&PID_7523\\CG-MOCK-WIND",
+                ),
+                usb=UsbConnectionInfo(
+                    label="USB serial bridge",
+                    confidence="low",
+                    source="mock CH340 serial",
+                    note="Generic USB serial bridge; speed unknown from PnP alone.",
                 ),
             ),
         ]

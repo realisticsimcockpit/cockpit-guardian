@@ -47,6 +47,34 @@ Operations such as USB rescan or COM port restoration can require administrator
 rights. Cockpit Guardian creates a backup before each restore attempt and reports
 clearly when elevation is required.
 
+## USB 2 / USB 3 Detection
+
+Cockpit Guardian shows USB generation information on the Dashboard when Windows
+exposes enough topology data.
+
+There are two levels of USB information:
+
+- Reliable negotiated speed: requires querying the USB hub with Windows USB IOCTLs,
+  the same family of APIs used by USBView.
+- Lightweight dashboard hint: uses Plug and Play topology strings such as USB 3
+  root hubs, xHCI controllers, high-speed hints, and USB serial bridge IDs.
+
+The Dashboard therefore uses confidence labels:
+
+- `medium`: Windows topology suggests a USB 2.0 or USB 3.x path.
+- `low`: the device is a generic USB serial bridge such as CH340, CP210x, FTDI,
+  or PL2303, and PnP alone does not expose negotiated speed.
+- `unknown`: Cockpit Guardian cannot infer the USB generation without a deeper
+  USBView-level hub query.
+
+This is useful for spotting obvious problems, for example a saved cockpit device
+that used to be on a USB 3 path and is now only visible through a USB 2 path. It
+should not be treated as a lab-grade USB speed measurement.
+
+For the best topology hints, enable `Deep Windows scan` in Settings. With the
+default lightweight scan, Cockpit Guardian avoids extra PowerShell/PnP queries and
+may show `USB speed unknown` for devices that require hub topology data.
+
 ## Sources Checked
 
 - SimHub Custom Serial Devices wiki:
@@ -69,3 +97,9 @@ clearly when elevation is required.
   https://learn.microsoft.com/en-us/windows-hardware/drivers/install/device-instance-ids
 - Microsoft PnPUtil syntax:
   https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/pnputil-command-syntax
+- Microsoft USBView:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/usbview
+- Microsoft IOCTL_USB_GET_NODE_CONNECTION_INFORMATION_EX_V2:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/usbioctl/ni-usbioctl-ioctl_usb_get_node_connection_information_ex_v2
+- Microsoft USB_NODE_CONNECTION_INFORMATION_EX_V2:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/usbioctl/ns-usbioctl-_usb_node_connection_information_ex_v2
