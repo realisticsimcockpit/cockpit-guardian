@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QColor, QFont, QGuiApplication, QImage, QPainter
+from PySide6.QtGui import QColor, QFont, QGuiApplication, QImage, QPainter, QPen
 from PySide6.QtSvg import QSvgRenderer
 
 
@@ -97,21 +97,29 @@ def render_logo(svg_path: Path, png_path: Path, width: int, height: int) -> None
         raise RuntimeError(f"Could not write {png_path}")
 
 
-def render_language_icon(text: str, png_path: Path) -> None:
+def render_language_flag(language: str, png_path: Path) -> None:
     image = QImage(96, 48, QImage.Format.Format_ARGB32)
     image.fill(Qt.GlobalColor.transparent)
     painter = QPainter(image)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    painter.setBrush(QColor("#020617"))
-    painter.setPen(QColor("#ffffff"))
-    painter.drawRoundedRect(QRectF(1, 1, 94, 46), 8, 8)
-    painter.setPen(QColor(BRAND_RED))
-    painter.drawRoundedRect(QRectF(2.5, 2.5, 91, 43), 7, 7)
-    painter.setPen(QColor("#ffffff"))
-    painter.setFont(QFont("Arial", 20, QFont.Weight.Bold))
-    painter.drawText(QRectF(0, 0, 96, 44), Qt.AlignmentFlag.AlignCenter, text)
-    painter.setPen(QColor(BRAND_RED))
-    painter.drawLine(18, 40, 78, 40)
+    if language == "fr":
+        painter.fillRect(QRectF(0, 0, 32, 48), QColor("#002395"))
+        painter.fillRect(QRectF(32, 0, 32, 48), QColor("#ffffff"))
+        painter.fillRect(QRectF(64, 0, 32, 48), QColor("#ed2939"))
+    else:
+        painter.fillRect(QRectF(0, 0, 96, 48), QColor("#012169"))
+        painter.setPen(QPen(QColor("#ffffff"), 10))
+        painter.drawLine(0, 0, 96, 48)
+        painter.drawLine(96, 0, 0, 48)
+        painter.setPen(QPen(QColor("#c8102e"), 5))
+        painter.drawLine(0, 0, 96, 48)
+        painter.drawLine(96, 0, 0, 48)
+        painter.fillRect(QRectF(0, 17, 96, 14), QColor("#ffffff"))
+        painter.fillRect(QRectF(41, 0, 14, 48), QColor("#ffffff"))
+        painter.fillRect(QRectF(0, 21, 96, 6), QColor("#c8102e"))
+        painter.fillRect(QRectF(45, 0, 6, 48), QColor("#c8102e"))
+    painter.setPen(QPen(QColor("#ffffff"), 1))
+    painter.drawRoundedRect(QRectF(0.5, 0.5, 95, 47), 3, 3)
     painter.end()
     if not image.save(str(png_path)):
         raise RuntimeError(f"Could not write {png_path}")
@@ -190,8 +198,8 @@ def main() -> int:
         write_svg(svg, tray_svg(color, glyph))
         render_svg(svg, ASSET_DIR / f"{name}.png", 64)
 
-    render_language_icon("ENG", ASSET_DIR / "lang_eng.png")
-    render_language_icon("FR", ASSET_DIR / "lang_fr.png")
+    render_language_flag("eng", ASSET_DIR / "lang_eng.png")
+    render_language_flag("fr", ASSET_DIR / "lang_fr.png")
     render_preview()
     print(f"Generated assets in {ASSET_DIR}")
     app.quit()

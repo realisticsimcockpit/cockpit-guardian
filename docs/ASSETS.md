@@ -29,11 +29,11 @@ desktop distribution.
 ## Usage
 
 - The PySide application uses `app_icon_256.png` for the window and taskbar icon.
-- The dashboard uses `ui_logo_cg.png` in the compact status banner.
+- The dashboard uses `ui_logo_cg.png` in the top control area.
 - The main window paints `app_background.png` behind the tab content, with cached
   cover scaling to avoid repeated image work during repaints.
-- The main window starts at `724x543`, exactly 50% of the supplied background
-  file.
+- The main window starts at `905x679`, 25% larger than the previous compact
+  size.
 - The dashboard header exposes `lang_eng.png` and `lang_fr.png` for one-click
   language switching.
 - The system tray uses the status-specific tray PNG files.

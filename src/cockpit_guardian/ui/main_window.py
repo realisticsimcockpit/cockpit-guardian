@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QSize, Qt, QThread, QTimer, Signal, Slot
-from PySide6.QtGui import QColor, QPainter, QPixmap
+from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -39,8 +39,8 @@ from .tray import GuardianTray
 from ..services.integration_notices import INTEGRATION_NOTICES
 
 
-WINDOW_WIDTH = 724
-WINDOW_HEIGHT = 543
+WINDOW_WIDTH = 905
+WINDOW_HEIGHT = 679
 
 DASHBOARD_TEXT = {
     "en": {
@@ -104,6 +104,44 @@ class BackgroundWidget(QWidget):
         event.accept()
 
 
+class SeparatorTableWidget(QTableWidget):
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt override
+        super().paintEvent(event)
+        self._paint_column_separators()
+
+    def _paint_column_separators(self) -> None:
+        painter = QPainter(self.viewport())
+        painter.setPen(QPen(QColor(255, 255, 255, 185), 1))
+        header = self.horizontalHeader()
+        last_visible = -1
+        for visual_index in range(header.count()):
+            logical_index = header.logicalIndex(visual_index)
+            if not self.isColumnHidden(logical_index):
+                last_visible = logical_index
+        for visual_index in range(header.count()):
+            logical_index = header.logicalIndex(visual_index)
+            if logical_index == last_visible or self.isColumnHidden(logical_index):
+                continue
+            x = header.sectionViewportPosition(logical_index) + header.sectionSize(logical_index) - 1
+            if 0 < x < self.viewport().width() - 1:
+                painter.drawLine(x, 0, x, self.viewport().height())
+        painter.end()
+
+
+class SeparatorTreeWidget(QTreeWidget):
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt override
+        super().paintEvent(event)
+        painter = QPainter(self.viewport())
+        painter.setPen(QPen(QColor(255, 255, 255, 185), 1))
+        header = self.header()
+        for visual_index in range(header.count() - 1):
+            logical_index = header.logicalIndex(visual_index)
+            x = header.sectionViewportPosition(logical_index) + header.sectionSize(logical_index) - 1
+            if 0 < x < self.viewport().width() - 1:
+                painter.drawLine(x, 0, x, self.viewport().height())
+        painter.end()
+
+
 class Worker(QObject):
     finished = Signal(object)
     failed = Signal(str)
@@ -146,6 +184,7 @@ class MainWindow(QMainWindow):
         self._build_advanced_tab()
         self._refresh_dashboard_texts()
         self._update_language_buttons()
+        QTimer.singleShot(0, self._resize_dashboard_columns)
 
         self.tray = GuardianTray(self)
         self.tray.open_requested.connect(self.show_and_raise)
@@ -160,18 +199,54 @@ class MainWindow(QMainWindow):
     def apply_theme(self) -> None:
         QApplication.instance().setStyleSheet(app_stylesheet(self.settings.theme))
 
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt override
+        super().resizeEvent(event)
+        self._resize_dashboard_columns()
+
+    def _resize_dashboard_columns(self) -> None:
+        if not hasattr(self, "device_table"):
+            return
+        self._set_table_column_widths(self.device_table, [0.40, 0.16, 0.16, 0.28])
+        self._set_table_column_widths(self.joystick_table, [0.20, 0.80])
+        self._set_tree_column_widths(self.summary_tree, [0.36, 0.64])
+        if hasattr(self, "usb_table"):
+            self._set_table_column_widths(self.usb_table, [0.20, 0.16, 0.26, 0.38])
+        if hasattr(self, "priority_table"):
+            self._set_table_column_widths(self.priority_table, [0.50, 0.24, 0.26])
+
+    @staticmethod
+    def _set_table_column_widths(table: QTableWidget, ratios: list[float]) -> None:
+        width = table.viewport().width()
+        if width <= 0:
+            return
+        assigned = 0
+        for column, ratio in enumerate(ratios[:-1]):
+            column_width = max(42, int(width * ratio))
+            table.setColumnWidth(column, column_width)
+            assigned += column_width
+        table.setColumnWidth(len(ratios) - 1, max(42, width - assigned - 2))
+
+    @staticmethod
+    def _set_tree_column_widths(tree: QTreeWidget, ratios: list[float]) -> None:
+        width = tree.viewport().width()
+        if width <= 0:
+            return
+        first_width = max(54, int(width * ratios[0]))
+        tree.setColumnWidth(0, first_width)
+        tree.setColumnWidth(1, max(54, width - first_width - 2))
+
     def _build_dashboard(self) -> None:
         page = QWidget()
         page.setObjectName("DashboardPage")
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(9, 8, 9, 9)
-        layout.setSpacing(7)
+        layout.setContentsMargins(14, 12, 14, 14)
+        layout.setSpacing(10)
 
         self.dashboard_header = QFrame()
         self.dashboard_header.setObjectName("DashboardHeader")
         header_layout = QHBoxLayout(self.dashboard_header)
-        header_layout.setContentsMargins(10, 6, 10, 6)
-        header_layout.setSpacing(10)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(16)
 
         status_block = QWidget()
         status_block.setObjectName("StatusBlock")
@@ -195,13 +270,13 @@ class MainWindow(QMainWindow):
         if not logo.isNull():
             self.dashboard_logo.setPixmap(
                 logo.scaled(
-                    210,
-                    63,
+                    268,
+                    80,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        self.dashboard_logo.setMaximumHeight(66)
+        self.dashboard_logo.setMaximumHeight(82)
         header_layout.addWidget(self.dashboard_logo, 3)
 
         right_panel = QWidget()
@@ -217,16 +292,16 @@ class MainWindow(QMainWindow):
         self.language_eng_button.setObjectName("LanguageButton")
         self.language_eng_button.setCheckable(True)
         self.language_eng_button.setIcon(asset_icon("lang_eng.png"))
-        self.language_eng_button.setIconSize(QSize(36, 18))
-        self.language_eng_button.setFixedSize(44, 24)
+        self.language_eng_button.setIconSize(QSize(42, 21))
+        self.language_eng_button.setFixedSize(50, 28)
         self.language_eng_button.setToolTip("Switch dashboard language to English")
         self.language_eng_button.clicked.connect(lambda: self._set_language("en"))
         self.language_fr_button = QPushButton()
         self.language_fr_button.setObjectName("LanguageButton")
         self.language_fr_button.setCheckable(True)
         self.language_fr_button.setIcon(asset_icon("lang_fr.png"))
-        self.language_fr_button.setIconSize(QSize(36, 18))
-        self.language_fr_button.setFixedSize(44, 24)
+        self.language_fr_button.setIconSize(QSize(42, 21))
+        self.language_fr_button.setFixedSize(50, 28)
         self.language_fr_button.setToolTip("Basculer le dashboard en francais")
         self.language_fr_button.clicked.connect(lambda: self._set_language("fr"))
         language_layout.addWidget(self.language_eng_button)
@@ -270,12 +345,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.dashboard_header)
         self._apply_status_style(GlobalStatus.CHECK_NOT_DONE)
 
-        self.device_table = QTableWidget(0, 4)
+        self.device_table = SeparatorTableWidget(0, 4)
         self.device_table.setHorizontalHeaderLabels(["Device", "Role", "Status", "USB"])
-        self.device_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.device_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        self.device_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.device_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        for column in range(4):
+            self.device_table.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
+        self.device_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.device_table.verticalHeader().setVisible(False)
         self.device_table.setAlternatingRowColors(True)
         self.device_table.setShowGrid(True)
@@ -283,9 +357,12 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.device_table, 2)
 
         bottom = QHBoxLayout()
-        self.joystick_table = QTableWidget(0, 2)
+        bottom.setSpacing(14)
+        self.joystick_table = SeparatorTableWidget(0, 2)
         self.joystick_table.setHorizontalHeaderLabels(["#", "Joystick Order"])
-        self.joystick_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        for column in range(2):
+            self.joystick_table.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
+        self.joystick_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.joystick_table.verticalHeader().setVisible(False)
         self.joystick_table.setShowGrid(True)
         self.joystick_table.setGridStyle(Qt.PenStyle.SolidLine)
@@ -293,10 +370,11 @@ class MainWindow(QMainWindow):
         self.joystick_panel_title = self.joystick_panel.title_label
         bottom.addWidget(self.joystick_panel, 2)
 
-        self.summary_tree = QTreeWidget()
+        self.summary_tree = SeparatorTreeWidget()
         self.summary_tree.setHeaderLabels(["Area", "Status"])
-        self.summary_tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.summary_tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.summary_tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        self.summary_tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        self.summary_tree.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.summary_panel = self._panel("USB Health and Software", self.summary_tree)
         self.summary_panel_title = self.summary_panel.title_label
         bottom.addWidget(self.summary_panel, 3)
@@ -310,7 +388,7 @@ class MainWindow(QMainWindow):
         self.usb_score = QLabel("Stability score: 100")
         self.usb_score.setStyleSheet("font-size: 20px; font-weight: 700;")
         layout.addWidget(self.usb_score)
-        self.usb_table = QTableWidget(0, 4)
+        self.usb_table = SeparatorTableWidget(0, 4)
         self.usb_table.setHorizontalHeaderLabels(["Time", "Severity", "Device", "Event"])
         self.usb_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self.usb_table.verticalHeader().setVisible(False)
@@ -391,7 +469,7 @@ class MainWindow(QMainWindow):
         priority_label = QLabel("Device priority")
         priority_label.setStyleSheet("font-size: 16px; font-weight: 700;")
         layout.addWidget(priority_label)
-        self.priority_table = QTableWidget(0, 3)
+        self.priority_table = SeparatorTableWidget(0, 3)
         self.priority_table.setHorizontalHeaderLabels(["Device", "Role", "Priority"])
         self.priority_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.priority_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)

@@ -27,10 +27,10 @@ def app_stylesheet(theme: str = "dark") -> str:
         QWidget { color: #f8fafc; font-size: 11px; }
         QLabel { background: transparent; }
         QWidget#AppBackground { background: #000000; }
-        QFrame#DashboardHeader { background: rgba(0, 0, 0, 178); border: 0; border-radius: 4px; }
-        QPushButton { background: rgba(15, 23, 42, 210); color: #f8fafc; border: 1px solid rgba(148, 163, 184, 72); border-radius: 4px; padding: 5px 8px; }
-        QPushButton:hover { background: rgba(30, 41, 59, 232); }
-        QPushButton#PrimaryButton { background: #2563eb; color: white; border-color: #2563eb; }
+        QFrame#DashboardHeader { background: transparent; border: 0; }
+        QPushButton { background: rgba(0, 0, 0, 190); color: #f8fafc; border: 1px solid rgba(255, 255, 255, 90); border-radius: 5px; padding: 6px 10px; }
+        QPushButton:hover { background: rgba(25, 25, 25, 235); border-color: rgba(220, 38, 38, 210); }
+        QPushButton#PrimaryButton { background: rgba(185, 28, 28, 215); color: white; border-color: #ef4444; }
         QPushButton#LanguageButton { padding: 0; border: 1px solid rgba(255, 255, 255, 115); background: rgba(0, 0, 0, 190); }
         QPushButton#LanguageButton:checked { border: 1px solid #dc2626; background: rgba(220, 38, 38, 100); }
         QTabWidget::pane { background: transparent; border: 0; }
@@ -45,10 +45,10 @@ def app_stylesheet(theme: str = "dark") -> str:
     QWidget { color: #e5e7eb; font-size: 11px; }
     QLabel { background: transparent; }
     QWidget#AppBackground { background: #000000; }
-    QFrame#DashboardHeader { background: rgba(0, 0, 0, 178); border: 0; border-radius: 4px; }
-    QPushButton { background: rgba(15, 23, 42, 210); border: 1px solid rgba(148, 163, 184, 72); border-radius: 4px; padding: 5px 8px; }
-    QPushButton:hover { background: rgba(30, 41, 59, 232); }
-    QPushButton#PrimaryButton { background: #2563eb; color: white; border-color: #2563eb; }
+    QFrame#DashboardHeader { background: transparent; border: 0; }
+    QPushButton { background: rgba(0, 0, 0, 190); border: 1px solid rgba(255, 255, 255, 90); border-radius: 5px; padding: 6px 10px; }
+    QPushButton:hover { background: rgba(25, 25, 25, 235); border-color: rgba(220, 38, 38, 210); }
+    QPushButton#PrimaryButton { background: rgba(185, 28, 28, 215); color: white; border-color: #ef4444; }
     QPushButton#LanguageButton { padding: 0; border: 1px solid rgba(255, 255, 255, 115); background: rgba(0, 0, 0, 190); }
     QPushButton#LanguageButton:checked { border: 1px solid #dc2626; background: rgba(220, 38, 38, 100); }
     QPushButton:disabled { color: #6b7280; background: rgba(15, 23, 42, 130); }
