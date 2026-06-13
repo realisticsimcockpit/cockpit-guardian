@@ -47,6 +47,6 @@ class JoystickOrderManager:
             return False, "Administrator rights are required to restore joystick order.", True
         return (
             False,
-            f"Joystick order backup saved to {backup_path}. Native DirectInput registry restore is not enabled yet.",
+            f"Joystick order backup saved to {backup_path}. No registry change was made because the Windows joystick-order adapter still requires hardware validation.",
             False,
         )

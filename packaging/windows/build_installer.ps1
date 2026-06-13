@@ -37,12 +37,16 @@ if ($DeepClean) {
 }
 
 if (-not (Test-Path ".venv\Scripts\python.exe")) {
-    py -3.12 -m venv .venv
+    python -m venv .venv
 }
 
 $Python = Resolve-Path ".venv\Scripts\python.exe"
 & $Python -m pip install --upgrade pip
 & $Python -m pip install -e ".[windows,build]"
+$Version = (& $Python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])").Trim()
+$Publisher = "Realistic Sim Cockpit"
+$ProductName = "Cockpit Guardian"
+Write-Host "Building $ProductName $Version"
 
 Remove-Item $NuitkaRoot, $StageDir -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $NuitkaRoot, $StageDir, $DistDir | Out-Null
@@ -56,6 +60,12 @@ $nuitkaArgs = @(
     "--remove-output",
     "--output-dir=$NuitkaRoot",
     "--output-filename=CockpitGuardian.exe",
+    "--windows-company-name=$Publisher",
+    "--windows-product-name=$ProductName",
+    "--windows-file-description=$ProductName",
+    "--windows-file-version=$Version",
+    "--windows-product-version=$Version",
+    "--copyright=Copyright (c) 2026 $Publisher",
     "--nofollow-import-to=pytest,unittest,tkinter",
     "src\cockpit_guardian\__main__.py"
 )
@@ -69,6 +79,8 @@ if ($distCandidates.Count -ne 1) {
 
 Copy-Item (Join-Path $distCandidates[0].FullName "*") $StageDir -Recurse -Force
 Copy-Item "README.md" $StageDir -Force
+Copy-Item "LICENSE" $StageDir -Force
+Copy-Item "CHANGELOG.md" $StageDir -Force
 Copy-Item "docs" (Join-Path $StageDir "docs") -Recurse -Force
 
 if ($SkipInstaller) {
@@ -84,5 +96,5 @@ if (-not $Iscc) {
 }
 
 $Iss = Join-Path $PSScriptRoot "CockpitGuardian.iss"
-& $Iscc "/DSourceDir=$StageDir" "/DOutputDir=$DistDir" $Iss
+& $Iscc "/DSourceDir=$StageDir" "/DOutputDir=$DistDir" "/DMyAppVersion=$Version" $Iss
 Write-Host "Installer output directory: $DistDir"

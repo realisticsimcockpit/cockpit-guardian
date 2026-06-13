@@ -1,5 +1,9 @@
 # Cockpit Guardian
 
+[![CI](https://github.com/realisticsimcockpit/cockpit-guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/realisticsimcockpit/cockpit-guardian/actions/workflows/ci.yml)
+[![Release](https://github.com/realisticsimcockpit/cockpit-guardian/actions/workflows/release.yml/badge.svg)](https://github.com/realisticsimcockpit/cockpit-guardian/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 Cockpit Guardian is a Windows desktop application for simracing cockpit supervision.
 Its main question is deliberately simple:
 
@@ -28,6 +32,15 @@ This repository contains a working first version with:
 Some hardware-specific restore paths need real Windows hardware validation before they
 should be considered complete. The code returns explicit messages when an operation
 needs administrator rights or when a native API is unavailable.
+
+## Project Status
+
+Version: `0.1.0`
+
+Status: alpha. The application structure, UI, snapshot/check/restore flow, tests,
+and Windows installer pipeline are in place. Hardware-specific restore operations
+still need validation on a real Windows simracing cockpit before being treated as
+production-ready.
 
 ## Install
 
@@ -84,10 +97,17 @@ Important files:
 
 ## Development
 
+Install development dependencies:
+
+```bash
+python -m pip install -e ".[dev]"
+```
+
 Run tests:
 
 ```bash
-pytest
+python -m compileall -q src tests
+python -m pytest -q
 ```
 
 Run with deterministic mock devices:
@@ -111,6 +131,18 @@ with real SimHub, Arduino, ESP, or Windows hardware. In short:
 
 ## Architecture
 
+Main docs:
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Integration notices](docs/INTEGRATION_NOTICES.md)
+- [Windows installer](docs/WINDOWS_INSTALLER.md)
+- [Release process](docs/RELEASE_PROCESS.md)
+- [Repository setup](docs/REPOSITORY_SETUP.md)
+- [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security](SECURITY.md)
+- [Support](SUPPORT.md)
+
 Main modules:
 
 - `cockpit_guardian.ui`: PySide6 UI, dashboard, tabs, tray integration.
@@ -123,3 +155,7 @@ Main modules:
 - `cockpit_guardian.services.simhub`: SimHub and FFB clipping integration hook.
 - `cockpit_guardian.services.software_detector`: simracing software detection.
 - `cockpit_guardian.services.restore_engine`: restore and rollback orchestration.
+
+## License
+
+Cockpit Guardian is released under the [MIT License](LICENSE).

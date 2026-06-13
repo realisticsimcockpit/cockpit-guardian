@@ -1,7 +1,10 @@
 #define MyAppName "Cockpit Guardian"
+#ifndef MyAppVersion
 #define MyAppVersion "0.1.0"
-#define MyAppPublisher "Cockpit Guardian"
+#endif
+#define MyAppPublisher "Realistic Sim Cockpit"
 #define MyAppExeName "CockpitGuardian.exe"
+#define MyAppURL "https://github.com/realisticsimcockpit/cockpit-guardian"
 #ifndef SourceDir
 #define SourceDir "..\\..\\build\\windows\\CockpitGuardian"
 #endif
@@ -13,7 +16,11 @@
 AppId={{21E1BB5A-3995-49C3-A6DC-353945D14494}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}
+AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\Cockpit Guardian
 DefaultGroupName=Cockpit Guardian
 DisableProgramGroupPage=yes
@@ -27,6 +34,12 @@ WizardStyle=modern
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 UninstallDisplayIcon={app}\{#MyAppExeName}
+LicenseFile={#SourceDir}\LICENSE
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription={#MyAppName}
+VersionInfoProductName={#MyAppName}
+VersionInfoProductVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppVersion}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

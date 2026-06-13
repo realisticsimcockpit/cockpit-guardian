@@ -1,0 +1,66 @@
+name: Bug report
+description: Report a Cockpit Guardian problem.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a Cockpit Guardian issue. Include logs only after removing secrets.
+  - type: input
+    id: version
+    attributes:
+      label: Cockpit Guardian version
+      value: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 23H2"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Dashboard
+        - USB Health
+        - Save Configuration
+        - Restore
+        - Rollback
+        - Joystick Order
+        - SimHub
+        - Arduino or ESP
+        - Windows installer
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: devices
+    attributes:
+      label: Devices involved
+      description: List wheelbase, pedals, DDU, Arduino, ESP, wind simulator, button box, shifter, or other relevant devices.
+      placeholder: "Simagic Alpha, DDU on COM5, Wind Simulator on CH340"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste the relevant log export from the Logs tab if available.
+      render: text

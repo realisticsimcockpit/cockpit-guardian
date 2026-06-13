@@ -23,6 +23,9 @@ Outputs:
 - Standalone application: `build\windows\CockpitGuardian`
 - Installer: `dist\CockpitGuardianSetup-0.1.0.exe`
 
+The installer version is read from `pyproject.toml`, so no manual edit is needed
+when creating a release.
+
 To build only the standalone application:
 
 ```powershell
@@ -47,6 +50,8 @@ need administrator rights should request elevation only for those actions rather
 than forcing the entire UI to run elevated.
 
 The optional startup task creates a shortcut in the current user's Startup folder.
+The installer publisher is `Realistic Sim Cockpit`, and support/update URLs point
+to the GitHub repository.
 
 ## Sources Checked
 

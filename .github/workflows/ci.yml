@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: ["main"]
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     name: Tests
@@ -31,3 +34,6 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -q
+
+      - name: Check installed dependencies
+        run: python -m pip check
