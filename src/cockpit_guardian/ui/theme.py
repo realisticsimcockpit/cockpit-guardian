@@ -30,9 +30,10 @@ def app_stylesheet(theme: str = "dark") -> str:
         QFrame#DashboardHeader { background: transparent; border: 0; }
         QFrame#DataPanel { background: rgba(0, 0, 0, 124); border: 1px solid rgba(148, 163, 184, 150); border-radius: 5px; }
         QLabel#PanelTitle { color: #f8fafc; font-size: 12px; font-weight: 700; }
-        QLabel#ChecklistName { color: #f8fafc; font-size: 11px; }
-        QLabel#ChecklistStatus { font-size: 11px; font-weight: 700; }
-        QFrame#ChecklistSeparator { color: rgba(148, 163, 184, 70); background: rgba(148, 163, 184, 70); max-height: 1px; }
+        QWidget#SummaryContent { background: rgba(0, 0, 0, 92); border: 0; }
+        QLabel#ChecklistName { color: #f8fafc; font-size: 12px; }
+        QLabel#ChecklistStatus { font-size: 12px; font-weight: 700; }
+        QFrame#ChecklistSeparator { color: rgba(148, 163, 184, 58); background: rgba(148, 163, 184, 58); max-height: 1px; }
         QLabel#LogoCredit { color: #d1d5db; font-size: 9px; font-weight: 700; letter-spacing: 1px; }
         QFrame#AppFooter { background: rgba(0, 0, 0, 150); border-top: 1px solid rgba(148, 163, 184, 110); }
         QLabel#FooterText { color: #ffffff; font-size: 10px; }
@@ -48,8 +49,13 @@ def app_stylesheet(theme: str = "dark") -> str:
             background: rgba(0, 0, 0, 178); color: #f8fafc; border: 0; border-radius: 4px; gridline-color: rgba(255, 255, 255, 175);
         }
         QTableWidget { alternate-background-color: rgba(18, 18, 18, 220); }
+        QTableWidget::item { padding-left: 3px; }
         QTableWidget::item:selected, QTreeWidget::item:selected { background: rgba(185, 28, 28, 150); color: #ffffff; }
-        QHeaderView::section { background: rgba(0, 0, 0, 235); color: #f8fafc; padding: 4px; border: 0; border-right: 1px solid rgba(255, 255, 255, 185); }
+        QHeaderView::section { background: rgba(0, 0, 0, 235); color: #f8fafc; padding: 4px 4px 4px 5px; border: 0; border-right: 1px solid rgba(255, 255, 255, 185); text-align: left; }
+        QScrollBar:vertical { background: rgba(0, 0, 0, 120); width: 8px; margin: 0; }
+        QScrollBar::handle:vertical { background: rgba(148, 163, 184, 150); min-height: 22px; border-radius: 4px; }
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }
         """
     return """
     QWidget { color: #e5e7eb; font-size: 11px; }
@@ -58,9 +64,10 @@ def app_stylesheet(theme: str = "dark") -> str:
     QFrame#DashboardHeader { background: transparent; border: 0; }
     QFrame#DataPanel { background: rgba(0, 0, 0, 124); border: 1px solid rgba(148, 163, 184, 150); border-radius: 5px; }
     QLabel#PanelTitle { color: #f8fafc; font-size: 12px; font-weight: 700; }
-    QLabel#ChecklistName { color: #f8fafc; font-size: 11px; }
-    QLabel#ChecklistStatus { font-size: 11px; font-weight: 700; }
-    QFrame#ChecklistSeparator { color: rgba(148, 163, 184, 70); background: rgba(148, 163, 184, 70); max-height: 1px; }
+    QWidget#SummaryContent { background: rgba(0, 0, 0, 92); border: 0; }
+    QLabel#ChecklistName { color: #f8fafc; font-size: 12px; }
+    QLabel#ChecklistStatus { font-size: 12px; font-weight: 700; }
+    QFrame#ChecklistSeparator { color: rgba(148, 163, 184, 58); background: rgba(148, 163, 184, 58); max-height: 1px; }
     QLabel#LogoCredit { color: #d1d5db; font-size: 9px; font-weight: 700; letter-spacing: 1px; }
     QFrame#AppFooter { background: rgba(0, 0, 0, 150); border-top: 1px solid rgba(148, 163, 184, 110); }
     QLabel#FooterText { color: #ffffff; font-size: 10px; }
@@ -77,6 +84,11 @@ def app_stylesheet(theme: str = "dark") -> str:
         background: rgba(0, 0, 0, 178); border: 0; border-radius: 4px; gridline-color: rgba(255, 255, 255, 175);
     }
     QTableWidget { alternate-background-color: rgba(18, 18, 18, 220); }
+    QTableWidget::item { padding-left: 3px; }
     QTableWidget::item:selected, QTreeWidget::item:selected { background: rgba(185, 28, 28, 150); color: #ffffff; }
-    QHeaderView::section { background: rgba(0, 0, 0, 235); padding: 4px; border: 0; border-right: 1px solid rgba(255, 255, 255, 185); }
+    QHeaderView::section { background: rgba(0, 0, 0, 235); padding: 4px 4px 4px 5px; border: 0; border-right: 1px solid rgba(255, 255, 255, 185); text-align: left; }
+    QScrollBar:vertical { background: rgba(0, 0, 0, 120); width: 8px; margin: 0; }
+    QScrollBar::handle:vertical { background: rgba(148, 163, 184, 150); min-height: 22px; border-radius: 4px; }
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+    QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }
     """

@@ -86,6 +86,7 @@ DASHBOARD_TEXT = {
         },
         "unknown": "Unknown",
         "detected_com_status": "{com} detected",
+        "com_mismatch_status": "Expected {expected}, detected {detected}",
         "missing_device": "Missing",
         "com_ports": "COM Ports",
         "save": "Save",
@@ -97,7 +98,7 @@ DASHBOARD_TEXT = {
         "device_headers": ["Device", "Role", "Status", "USB"],
         "joystick_order": "Joystick Order",
         "joystick_headers": ["#", "Joystick", "USB"],
-        "usb_software": "USB Health and Software",
+        "usb_health": "USB",
         "tabs": ["Dashboard", "USB Health", "Logs", "Settings", "Advanced"],
     },
     "fr": {
@@ -140,6 +141,7 @@ DASHBOARD_TEXT = {
         },
         "unknown": "Inconnu",
         "detected_com_status": "{com} détecté",
+        "com_mismatch_status": "Attendu {expected}, détecté {detected}",
         "missing_device": "Absent",
         "com_ports": "COM Ports",
         "save": "Sauver",
@@ -151,7 +153,7 @@ DASHBOARD_TEXT = {
         "device_headers": ["Périphérique", "Rôle", "Statut", "USB"],
         "joystick_order": "Ordre Joystick",
         "joystick_headers": ["#", "Joystick", "USB"],
-        "usb_software": "USB et logiciels",
+        "usb_health": "USB",
         "tabs": ["Tableau", "Santé USB", "Journaux", "Réglages", "Avancé"],
     },
 }
@@ -304,8 +306,8 @@ class MainWindow(QMainWindow):
     def _resize_dashboard_columns(self) -> None:
         if not hasattr(self, "device_table"):
             return
-        self._set_table_column_widths(self.device_table, [0.34, 0.15, 0.15, 0.36])
-        self._set_table_column_widths(self.joystick_table, [0.12, 0.47, 0.41])
+        self._set_table_column_widths(self.device_table, [0.22, 0.14, 0.30, 0.34])
+        self._set_table_column_widths(self.joystick_table, [0.05, 0.35, 0.60])
         if hasattr(self, "usb_table"):
             self._set_table_column_widths(self.usb_table, [0.20, 0.16, 0.26, 0.38])
         if hasattr(self, "priority_table"):
@@ -318,67 +320,86 @@ class MainWindow(QMainWindow):
             return
         assigned = 0
         for column, ratio in enumerate(ratios[:-1]):
-            column_width = max(42, int(width * ratio))
+            column_width = max(32, int(width * ratio))
             table.setColumnWidth(column, column_width)
             assigned += column_width
-        table.setColumnWidth(len(ratios) - 1, max(42, width - assigned - 2))
+        table.setColumnWidth(len(ratios) - 1, max(32, width - assigned - 2))
+
+    @staticmethod
+    def _configure_table(table: QTableWidget) -> None:
+        table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        for column in range(table.columnCount()):
+            table.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        table.verticalHeader().setVisible(False)
+        table.verticalHeader().setDefaultSectionSize(30)
+        table.setWordWrap(False)
+        table.setTextElideMode(Qt.TextElideMode.ElideRight)
+        table.setShowGrid(True)
+        table.setGridStyle(Qt.PenStyle.SolidLine)
+        table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+
+    @staticmethod
+    def _set_table_headers(table: QTableWidget, labels: list[str]) -> None:
+        for column, label in enumerate(labels):
+            item = QTableWidgetItem(label)
+            item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            table.setHorizontalHeaderItem(column, item)
+
+    @staticmethod
+    def _table_item(value: str) -> QTableWidgetItem:
+        item = QTableWidgetItem(value)
+        item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        return item
 
     def _build_dashboard(self) -> None:
         page = QWidget()
         page.setObjectName("DashboardPage")
         layout = QVBoxLayout(page)
         layout.setContentsMargins(14, 12, 14, 14)
-        layout.setSpacing(10)
+        layout.setSpacing(8)
 
         self.dashboard_header = QFrame()
         self.dashboard_header.setObjectName("DashboardHeader")
         header_layout = QHBoxLayout(self.dashboard_header)
         header_layout.setContentsMargins(0, 0, 0, 0)
-        header_layout.setSpacing(16)
-
-        status_block = QWidget()
-        status_block.setObjectName("StatusBlock")
-        status_layout = QVBoxLayout(status_block)
-        status_layout.setContentsMargins(0, 0, 0, 0)
-        status_layout.setSpacing(4)
-        self.status_title = QLabel("CHECK NOT DONE")
-        self.status_title.setObjectName("StatusTitle")
-        self.status_subtitle = QLabel("Save your cockpit configuration, then run a check.")
-        self.status_subtitle.setObjectName("StatusSubtitle")
-        self.status_subtitle.setWordWrap(True)
-        status_layout.addWidget(self.status_title)
-        status_layout.addWidget(self.status_subtitle)
-        status_layout.addStretch(1)
-        header_layout.addWidget(status_block, 2)
+        header_layout.setSpacing(12)
 
         logo_block = QWidget()
         logo_block.setObjectName("LogoBlock")
         logo_layout = QVBoxLayout(logo_block)
         logo_layout.setContentsMargins(0, 0, 0, 0)
-        logo_layout.setSpacing(0)
+        logo_layout.setSpacing(2)
         self.dashboard_logo = QLabel()
         self.dashboard_logo.setObjectName("DashboardLogo")
-        self.dashboard_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.dashboard_logo.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         logo = asset_pixmap("ui_logo_cg.png")
         if not logo.isNull():
             self.dashboard_logo.setPixmap(
                 logo.scaled(
-                    134,
-                    40,
+                    124,
+                    37,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        self.dashboard_logo.setFixedHeight(42)
+        self.dashboard_logo.setFixedHeight(38)
         self.logo_credit_label = QLabel()
         self.logo_credit_label.setObjectName("LogoCredit")
-        self.logo_credit_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.logo_credit_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.logo_credit_label.setFixedHeight(12)
-        logo_layout.addStretch(1)
-        logo_layout.addWidget(self.dashboard_logo, 0, Qt.AlignmentFlag.AlignCenter)
-        logo_layout.addWidget(self.logo_credit_label, 0, Qt.AlignmentFlag.AlignCenter)
-        logo_layout.addStretch(1)
-        header_layout.addWidget(logo_block, 3)
+        self.status_title = QLabel("CHECK NOT DONE")
+        self.status_title.setObjectName("StatusTitle")
+        self.status_subtitle = QLabel("Save your cockpit configuration, then run a check.")
+        self.status_subtitle.setObjectName("StatusSubtitle")
+        self.status_subtitle.setWordWrap(False)
+        logo_layout.addWidget(self.dashboard_logo)
+        logo_layout.addWidget(self.logo_credit_label)
+        logo_layout.addSpacing(4)
+        logo_layout.addWidget(self.status_title)
+        logo_layout.addWidget(self.status_subtitle)
+        header_layout.addWidget(logo_block, 1)
 
         right_panel = QWidget()
         right_panel.setObjectName("RightPanel")
@@ -442,49 +463,37 @@ class MainWindow(QMainWindow):
         ):
             action_layout.addWidget(button, index // 2, index % 2)
         right_layout.addWidget(action_panel)
-        header_layout.addWidget(right_panel, 2)
+        header_layout.addWidget(right_panel, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
         layout.addWidget(self.dashboard_header)
         self._apply_status_style(GlobalStatus.CHECK_NOT_DONE)
 
-        self.device_table = SeparatorTableWidget(0, 4)
-        self.device_table.setHorizontalHeaderLabels(["Device", "Role", "Status", "USB"])
-        for column in range(4):
-            self.device_table.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
-        self.device_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.device_table.verticalHeader().setVisible(False)
-        self.device_table.setAlternatingRowColors(True)
-        self.device_table.setShowGrid(True)
-        self.device_table.setGridStyle(Qt.PenStyle.SolidLine)
-        self.device_table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
-        self.com_ports_panel = self._panel("COM Ports", self.device_table)
-        self.com_ports_panel_title = self.com_ports_panel.title_label
-        layout.addWidget(self.com_ports_panel, 2)
-
-        bottom = QHBoxLayout()
-        bottom.setSpacing(14)
-        self.joystick_table = SeparatorTableWidget(0, 3)
-        self.joystick_table.setHorizontalHeaderLabels(["#", "Joystick Order", "USB"])
-        for column in range(3):
-            self.joystick_table.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
-        self.joystick_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.joystick_table.verticalHeader().setVisible(False)
-        self.joystick_table.setShowGrid(True)
-        self.joystick_table.setGridStyle(Qt.PenStyle.SolidLine)
-        self.joystick_table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
-        self.joystick_panel = self._panel("Joystick Order", self.joystick_table)
-        self.joystick_panel_title = self.joystick_panel.title_label
-        bottom.addWidget(self.joystick_panel, 2)
-
         self.summary_content = QWidget()
         self.summary_content.setObjectName("SummaryContent")
+        self.summary_content.setMaximumWidth(760)
         self.summary_checklist_layout = QVBoxLayout(self.summary_content)
-        self.summary_checklist_layout.setContentsMargins(0, 0, 0, 0)
+        self.summary_checklist_layout.setContentsMargins(10, 0, 10, 0)
         self.summary_checklist_layout.setSpacing(0)
         self.summary_checklist_layout.addStretch(1)
-        self.summary_panel = self._panel("USB Health and Software", self.summary_content)
-        self.summary_panel_title = self.summary_panel.title_label
-        bottom.addWidget(self.summary_panel, 3)
-        layout.addLayout(bottom, 2)
+        layout.addWidget(self.summary_content, 0, Qt.AlignmentFlag.AlignHCenter)
+
+        tables = QVBoxLayout()
+        tables.setSpacing(14)
+
+        self.device_table = SeparatorTableWidget(0, 4)
+        self._set_table_headers(self.device_table, ["Device", "Role", "Status", "USB"])
+        self._configure_table(self.device_table)
+        self.device_table.setAlternatingRowColors(True)
+        self.com_ports_panel = self._panel("COM Ports", self.device_table)
+        self.com_ports_panel_title = self.com_ports_panel.title_label
+        tables.addWidget(self.com_ports_panel, 3)
+
+        self.joystick_table = SeparatorTableWidget(0, 3)
+        self._set_table_headers(self.joystick_table, ["#", "Joystick Order", "USB"])
+        self._configure_table(self.joystick_table)
+        self.joystick_panel = self._panel("Joystick Order", self.joystick_table)
+        self.joystick_panel_title = self.joystick_panel.title_label
+        tables.addWidget(self.joystick_panel, 2)
+        layout.addLayout(tables, 1)
 
         self.tabs.addTab(page, "Dashboard")
 
@@ -495,11 +504,9 @@ class MainWindow(QMainWindow):
         self.usb_score.setStyleSheet("font-size: 20px; font-weight: 700;")
         layout.addWidget(self.usb_score)
         self.usb_table = SeparatorTableWidget(0, 4)
-        self.usb_table.setHorizontalHeaderLabels(["Time", "Severity", "Device", "Event"])
+        self._set_table_headers(self.usb_table, ["Time", "Severity", "Device", "Event"])
+        self._configure_table(self.usb_table)
         self.usb_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
-        self.usb_table.verticalHeader().setVisible(False)
-        self.usb_table.setShowGrid(True)
-        self.usb_table.setGridStyle(Qt.PenStyle.SolidLine)
         layout.addWidget(self.usb_table)
         self.tabs.addTab(page, "USB Health")
 
@@ -576,13 +583,11 @@ class MainWindow(QMainWindow):
         priority_label.setStyleSheet("font-size: 16px; font-weight: 700;")
         layout.addWidget(priority_label)
         self.priority_table = SeparatorTableWidget(0, 3)
-        self.priority_table.setHorizontalHeaderLabels(["Device", "Role", "Priority"])
+        self._set_table_headers(self.priority_table, ["Device", "Role", "Priority"])
+        self._configure_table(self.priority_table)
         self.priority_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.priority_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.priority_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.priority_table.verticalHeader().setVisible(False)
-        self.priority_table.setShowGrid(True)
-        self.priority_table.setGridStyle(Qt.PenStyle.SolidLine)
         layout.addWidget(self.priority_table)
         self._load_priority_table()
         layout.addStretch(1)
@@ -777,10 +782,9 @@ class MainWindow(QMainWindow):
         self.import_config_button.setText(self._dashboard_text("import"))
         self.logo_credit_label.setText(self._dashboard_text("logo_credit"))
         self.com_ports_panel_title.setText(self._dashboard_text("com_ports"))
-        self.device_table.setHorizontalHeaderLabels(self._dashboard_text("device_headers"))
-        self.joystick_table.setHorizontalHeaderLabels(self._dashboard_text("joystick_headers"))
+        self._set_table_headers(self.device_table, self._dashboard_text("device_headers"))
+        self._set_table_headers(self.joystick_table, self._dashboard_text("joystick_headers"))
         self.joystick_panel_title.setText(self._dashboard_text("joystick_order"))
-        self.summary_panel_title.setText(self._dashboard_text("usb_software"))
         tabs = self._dashboard_text("tabs")
         for index, label in enumerate(tabs):
             if index < self.tabs.count():
@@ -832,7 +836,7 @@ class MainWindow(QMainWindow):
             tooltip = detail or check.message
             values = [check.label, role, self._device_status_text(check), usb]
             for column, value in enumerate(values):
-                item = QTableWidgetItem(value)
+                item = self._table_item(value)
                 item.setToolTip(tooltip)
                 if column == 2:
                     item.setForeground(QColor(SEVERITY_COLORS.get(check.severity, "#e5e7eb")))
@@ -848,9 +852,13 @@ class MainWindow(QMainWindow):
         expected_com = check.expected.serial.current_com if check.expected and check.expected.serial else None
         detected_com = check.detected.serial.current_com if check.detected and check.detected.serial else None
         if check.severity == Severity.RESTORE_NEEDED and expected_com and detected_com and expected_com != detected_com:
-            return self._dashboard_text("detected_com_status").format(com=detected_com)
+            return self._dashboard_text("com_mismatch_status").format(expected=expected_com, detected=detected_com)
         if check.detected is None:
+            if expected_com:
+                return self._dashboard_text("missing_device") + f" - {expected_com}"
             return self._dashboard_text("missing_device")
+        if detected_com:
+            return self._dashboard_text("detected_com_status").format(com=detected_com)
         return self._severity_text(check.severity)
 
     def _usb_summary(self, device) -> str:
@@ -870,14 +878,14 @@ class MainWindow(QMainWindow):
             row = self.joystick_table.rowCount()
             self.joystick_table.insertRow(row)
             device = devices_by_name.get(name.lower())
-            self.joystick_table.setItem(row, 0, QTableWidgetItem(str(index)))
-            self.joystick_table.setItem(row, 1, QTableWidgetItem(name))
-            self.joystick_table.setItem(row, 2, QTableWidgetItem(self._usb_summary(device)))
+            self.joystick_table.setItem(row, 0, self._table_item(str(index)))
+            self.joystick_table.setItem(row, 1, self._table_item(name))
+            self.joystick_table.setItem(row, 2, self._table_item(self._usb_summary(device)))
         if not order:
             self.joystick_table.insertRow(0)
-            self.joystick_table.setItem(0, 0, QTableWidgetItem("-"))
-            self.joystick_table.setItem(0, 1, QTableWidgetItem(report.joystick_order.message))
-            self.joystick_table.setItem(0, 2, QTableWidgetItem("-"))
+            self.joystick_table.setItem(0, 0, self._table_item("-"))
+            self.joystick_table.setItem(0, 1, self._table_item(report.joystick_order.message))
+            self.joystick_table.setItem(0, 2, self._table_item("-"))
 
     @staticmethod
     def _devices_by_joystick_name(report: CheckReport) -> dict[str, object]:
@@ -898,8 +906,8 @@ class MainWindow(QMainWindow):
         self._clear_layout(self.summary_checklist_layout)
         self._add_checklist_row(
             self.summary_checklist_layout,
-            self._dashboard_text("usb_software"),
-            report.usb_health.message,
+            self._dashboard_text("usb_health"),
+            self._compact_usb_health_message(report.usb_health.message),
             report.usb_health.severity,
         )
         self._add_checklist_row(
@@ -917,19 +925,31 @@ class MainWindow(QMainWindow):
             )
         self.summary_checklist_layout.addStretch(1)
 
+    @staticmethod
+    def _compact_usb_health_message(message: str) -> str:
+        text = message.strip()
+        for prefix in ("USB Health :", "USB Health:"):
+            if text.startswith(prefix):
+                text = text[len(prefix) :].strip(" -")
+                break
+        if text.lower().startswith("score ") and " - " in text:
+            text = text.split(" - ", 1)[1].strip()
+        return text or "OK"
+
     def _add_checklist_row(self, layout: QVBoxLayout, label: str, status: str, severity: Severity) -> None:
         row = QWidget()
         row.setObjectName("ChecklistRow")
         row_layout = QHBoxLayout(row)
-        row_layout.setContentsMargins(0, 4, 0, 4)
-        row_layout.setSpacing(8)
+        row_layout.setContentsMargins(0, 3, 0, 3)
+        row_layout.setSpacing(12)
         label_widget = QLabel(label)
         label_widget.setObjectName("ChecklistName")
-        label_widget.setMinimumWidth(110)
+        label_widget.setMinimumWidth(210)
+        label_widget.setWordWrap(False)
         status_widget = QLabel(f"{self._status_icon(severity)} {status}")
         status_widget.setObjectName("ChecklistStatus")
         status_widget.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        status_widget.setWordWrap(True)
+        status_widget.setWordWrap(False)
         status_widget.setStyleSheet(f"color: {SEVERITY_COLORS.get(severity, '#e5e7eb')};")
         row_layout.addWidget(label_widget, 0)
         row_layout.addWidget(status_widget, 1)
@@ -972,7 +992,7 @@ class MainWindow(QMainWindow):
             row = self.usb_table.rowCount()
             self.usb_table.insertRow(row)
             for column, value in enumerate([event.timestamp, event.severity.value, event.device_name, event.message]):
-                self.usb_table.setItem(row, column, QTableWidgetItem(value))
+                self.usb_table.setItem(row, column, self._table_item(value))
 
     def save_settings(self) -> None:
         self.settings = Settings(
