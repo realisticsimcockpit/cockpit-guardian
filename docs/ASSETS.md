@@ -30,6 +30,7 @@ desktop distribution.
 - The dashboard uses `ui_logo_cg.png` in the compact status banner.
 - The main window paints `app_background.png` behind the tab content, with cached
   cover scaling to avoid repeated image work during repaints.
+- The main window starts at `1448x1086` to match the supplied background file.
 - The system tray uses the status-specific tray PNG files.
 - The Windows build script passes `app_icon.ico` to Nuitka for executable metadata.
 - The Inno Setup installer uses `app_icon.ico` as the setup icon.

@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -87,7 +88,7 @@ class MainWindow(QMainWindow):
         self.settings = self.controller.load_settings()
         self.setWindowTitle("Cockpit Guardian")
         self.setWindowIcon(asset_icon("app_icon_256.png"))
-        self.resize(1180, 760)
+        self.resize(1448, 1086)
         self._threads: list[QThread] = []
         self._workers: dict[QThread, Worker] = {}
         self._busy_operations = 0
@@ -120,17 +121,31 @@ class MainWindow(QMainWindow):
 
     def _build_dashboard(self) -> None:
         page = QWidget()
+        page.setObjectName("DashboardPage")
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(14)
+        layout.setContentsMargins(18, 16, 18, 18)
+        layout.setSpacing(12)
 
-        self.status_banner = QFrame()
-        self.status_banner.setObjectName("StatusBanner")
-        self.status_banner.setStyleSheet(
-            f"QFrame#StatusBanner {{ background: {STATUS_COLORS[GlobalStatus.CHECK_NOT_DONE]}; }}"
-        )
-        banner_layout = QVBoxLayout(self.status_banner)
-        banner_layout.setContentsMargins(16, 12, 16, 14)
+        self.dashboard_header = QFrame()
+        self.dashboard_header.setObjectName("DashboardHeader")
+        header_layout = QHBoxLayout(self.dashboard_header)
+        header_layout.setContentsMargins(18, 12, 18, 12)
+        header_layout.setSpacing(22)
+
+        status_block = QWidget()
+        status_block.setObjectName("StatusBlock")
+        status_layout = QVBoxLayout(status_block)
+        status_layout.setContentsMargins(0, 0, 0, 0)
+        status_layout.setSpacing(4)
+        self.status_title = QLabel("CHECK NOT DONE")
+        self.status_title.setObjectName("StatusTitle")
+        self.status_subtitle = QLabel("Save your cockpit configuration, then run a check.")
+        self.status_subtitle.setObjectName("StatusSubtitle")
+        status_layout.addWidget(self.status_title)
+        status_layout.addWidget(self.status_subtitle)
+        status_layout.addStretch(1)
+        header_layout.addWidget(status_block, 2)
+
         self.dashboard_logo = QLabel()
         self.dashboard_logo.setObjectName("DashboardLogo")
         self.dashboard_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -138,51 +153,50 @@ class MainWindow(QMainWindow):
         if not logo.isNull():
             self.dashboard_logo.setPixmap(
                 logo.scaled(
-                    320,
-                    96,
+                    420,
+                    126,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        self.dashboard_logo.setMaximumHeight(100)
-        banner_layout.addWidget(self.dashboard_logo)
-        self.status_title = QLabel("CHECK NOT DONE")
-        self.status_title.setStyleSheet("font-size: 30px; font-weight: 800; background: transparent;")
-        self.status_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.status_subtitle = QLabel("Save your cockpit configuration, then run a check.")
-        self.status_subtitle.setStyleSheet("background: transparent;")
-        self.status_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        banner_layout.addWidget(self.status_title)
-        banner_layout.addWidget(self.status_subtitle)
-        layout.addWidget(self.status_banner)
+        self.dashboard_logo.setMaximumHeight(130)
+        header_layout.addWidget(self.dashboard_logo, 3)
 
-        button_layout = QHBoxLayout()
+        action_panel = QWidget()
+        action_panel.setObjectName("ActionPanel")
+        action_layout = QGridLayout(action_panel)
+        action_layout.setContentsMargins(0, 0, 0, 0)
+        action_layout.setHorizontalSpacing(8)
+        action_layout.setVerticalSpacing(8)
         self.save_button = QPushButton("Save Configuration")
         self.save_button.setObjectName("PrimaryButton")
         self.check_button = QPushButton("Check Now")
         self.restore_button = QPushButton("Restore")
         self.rollback_button = QPushButton("Rollback Last Restore")
+        self.export_config_button = QPushButton("Export Config Backup")
+        self.import_config_button = QPushButton("Import Config Backup")
         self.save_button.clicked.connect(self.save_configuration)
         self.check_button.clicked.connect(self.check_now)
         self.restore_button.clicked.connect(self.restore)
         self.rollback_button.clicked.connect(self.rollback)
-        for button in [self.save_button, self.check_button, self.restore_button, self.rollback_button]:
-            button_layout.addWidget(button)
-        button_layout.addStretch(1)
-        layout.addLayout(button_layout)
-
-        backup_layout = QHBoxLayout()
-        self.export_config_button = QPushButton("Export Config Backup")
-        self.import_config_button = QPushButton("Import Config Backup")
         self.export_config_button.clicked.connect(self.export_config_backup)
         self.import_config_button.clicked.connect(self.import_config_backup)
         self.export_config_button.setToolTip("Choose a cloud-synced folder such as OneDrive, Google Drive, Dropbox, iCloud, or a NAS.")
         self.import_config_button.setToolTip("Import this backup after reinstalling Windows, then run Restore.")
-        backup_layout.addWidget(self.export_config_button)
-        backup_layout.addWidget(self.import_config_button)
-        backup_layout.addWidget(QLabel("Keep this backup in a cloud folder before reinstalling Windows."))
-        backup_layout.addStretch(1)
-        layout.addLayout(backup_layout)
+        for index, button in enumerate(
+            [
+                self.save_button,
+                self.check_button,
+                self.restore_button,
+                self.rollback_button,
+                self.export_config_button,
+                self.import_config_button,
+            ]
+        ):
+            action_layout.addWidget(button, index // 2, index % 2)
+        header_layout.addWidget(action_panel, 2)
+        layout.addWidget(self.dashboard_header)
+        self._apply_status_style(GlobalStatus.CHECK_NOT_DONE)
 
         self.device_table = QTableWidget(0, 5)
         self.device_table.setHorizontalHeaderLabels(["Device", "Role", "Status", "USB", "Detail"])
@@ -445,7 +459,7 @@ class MainWindow(QMainWindow):
     def update_report(self, report: CheckReport) -> None:
         self.status_title.setText(report.global_status.value.upper())
         self.status_subtitle.setText(report.issues[0] if report.issues else "All saved cockpit devices look ready.")
-        self.status_banner.setStyleSheet(f"QFrame#StatusBanner {{ background: {STATUS_COLORS.get(report.global_status, '#6b7280')}; }}")
+        self._apply_status_style(report.global_status)
         self.tray.update_report(report)
         self._update_device_table(report)
         self._update_joystick(report)
@@ -454,6 +468,13 @@ class MainWindow(QMainWindow):
         self._load_priority_table()
         self.refresh_logs()
         self.refresh_advanced()
+
+    def _apply_status_style(self, status: GlobalStatus) -> None:
+        color = STATUS_COLORS.get(status, "#6b7280")
+        self.status_title.setStyleSheet(
+            f"font-size: 28px; font-weight: 800; color: {color}; background: transparent;"
+        )
+        self.status_subtitle.setStyleSheet("color: #d1d5db; background: transparent;")
 
     def _update_device_table(self, report: CheckReport) -> None:
         self.device_table.setRowCount(0)

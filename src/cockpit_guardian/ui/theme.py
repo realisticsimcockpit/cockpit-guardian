@@ -24,35 +24,35 @@ SEVERITY_COLORS = {
 def app_stylesheet(theme: str = "dark") -> str:
     if theme == "light":
         return """
-        QWidget { color: #0f172a; font-size: 13px; }
+        QWidget { color: #f8fafc; font-size: 13px; }
         QLabel { background: transparent; }
-        QWidget#AppBackground { background: #f8fafc; }
-        QFrame#StatusBanner { border-radius: 8px; color: white; }
-        QPushButton { background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; }
-        QPushButton:hover { background: #cbd5e1; }
+        QWidget#AppBackground { background: #000000; }
+        QFrame#DashboardHeader { background: rgba(0, 0, 0, 178); border: 0; border-radius: 4px; }
+        QPushButton { background: rgba(15, 23, 42, 210); color: #f8fafc; border: 1px solid rgba(148, 163, 184, 72); border-radius: 4px; padding: 8px 12px; }
+        QPushButton:hover { background: rgba(30, 41, 59, 232); }
         QPushButton#PrimaryButton { background: #2563eb; color: white; border-color: #2563eb; }
-        QTabWidget::pane { background: rgba(248, 250, 252, 192); border: 1px solid #cbd5e1; border-radius: 6px; }
-        QTabBar::tab { background: #e2e8f0; padding: 8px 14px; border-top-left-radius: 6px; border-top-right-radius: 6px; }
-        QTabBar::tab:selected { background: white; }
+        QTabWidget::pane { background: transparent; border: 0; }
+        QTabBar::tab { background: rgba(0, 0, 0, 178); color: #d1d5db; padding: 8px 14px; border: 0; }
+        QTabBar::tab:selected { background: rgba(0, 0, 0, 235); color: white; border-bottom: 2px solid #dc0000; }
         QTableWidget, QTreeWidget, QTextEdit, QLineEdit, QDoubleSpinBox, QComboBox {
-            background: white; border: 1px solid #cbd5e1; border-radius: 6px;
+            background: rgba(0, 0, 0, 178); color: #f8fafc; border: 0; border-radius: 4px;
         }
-        QHeaderView::section { background: #e2e8f0; padding: 6px; border: 0; }
+        QHeaderView::section { background: rgba(0, 0, 0, 235); color: #f8fafc; padding: 6px; border: 0; }
         """
     return """
     QWidget { color: #e5e7eb; font-size: 13px; }
     QLabel { background: transparent; }
-    QWidget#AppBackground { background: #05070b; }
-    QFrame#StatusBanner { border-radius: 8px; color: white; }
-    QPushButton { background: #1f2937; border: 1px solid #374151; border-radius: 6px; padding: 8px 12px; }
-    QPushButton:hover { background: #374151; }
+    QWidget#AppBackground { background: #000000; }
+    QFrame#DashboardHeader { background: rgba(0, 0, 0, 178); border: 0; border-radius: 4px; }
+    QPushButton { background: rgba(15, 23, 42, 210); border: 1px solid rgba(148, 163, 184, 72); border-radius: 4px; padding: 8px 12px; }
+    QPushButton:hover { background: rgba(30, 41, 59, 232); }
     QPushButton#PrimaryButton { background: #2563eb; color: white; border-color: #2563eb; }
-    QPushButton:disabled { color: #6b7280; background: #111827; }
-    QTabWidget::pane { background: rgba(17, 24, 39, 188); border: 1px solid #374151; border-radius: 6px; }
-    QTabBar::tab { background: #1f2937; padding: 8px 14px; border-top-left-radius: 6px; border-top-right-radius: 6px; }
-    QTabBar::tab:selected { background: #374151; }
+    QPushButton:disabled { color: #6b7280; background: rgba(15, 23, 42, 130); }
+    QTabWidget::pane { background: transparent; border: 0; }
+    QTabBar::tab { background: rgba(0, 0, 0, 178); color: #d1d5db; padding: 8px 14px; border: 0; }
+    QTabBar::tab:selected { background: rgba(0, 0, 0, 235); color: white; border-bottom: 2px solid #dc0000; }
     QTableWidget, QTreeWidget, QTextEdit, QLineEdit, QDoubleSpinBox, QComboBox {
-        background: #0f172a; border: 1px solid #374151; border-radius: 6px;
+        background: rgba(0, 0, 0, 178); border: 0; border-radius: 4px; gridline-color: rgba(148, 163, 184, 45);
     }
-    QHeaderView::section { background: #1f2937; padding: 6px; border: 0; }
+    QHeaderView::section { background: rgba(0, 0, 0, 235); padding: 6px; border: 0; }
     """
