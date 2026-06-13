@@ -16,6 +16,8 @@ desktop distribution.
 - `src/cockpit_guardian/assets/app_background.png`: main application background.
 - `src/cockpit_guardian/assets/brand_lockup.svg`: logo lockup source.
 - `src/cockpit_guardian/assets/brand_lockup.png`: rendered logo lockup.
+- `src/cockpit_guardian/assets/lang_eng.png`: one-click English switch icon.
+- `src/cockpit_guardian/assets/lang_fr.png`: one-click French switch icon.
 - `src/cockpit_guardian/assets/tray_idle.png`: no check / unknown state.
 - `src/cockpit_guardian/assets/tray_ready.png`: cockpit ready.
 - `src/cockpit_guardian/assets/tray_warning.png`: warning.
@@ -30,14 +32,17 @@ desktop distribution.
 - The dashboard uses `ui_logo_cg.png` in the compact status banner.
 - The main window paints `app_background.png` behind the tab content, with cached
   cover scaling to avoid repeated image work during repaints.
-- The main window starts at `1448x1086` to match the supplied background file.
+- The main window starts at `724x543`, exactly 50% of the supplied background
+  file.
+- The dashboard header exposes `lang_eng.png` and `lang_fr.png` for one-click
+  language switching.
 - The system tray uses the status-specific tray PNG files.
 - The Windows build script passes `app_icon.ico` to Nuitka for executable metadata.
 - The Inno Setup installer uses `app_icon.ico` as the setup icon.
 
 ## Regeneration
 
-Regenerate the generated icon, tray, lockup, and preview assets with:
+Regenerate the generated icon, tray, language, lockup, and preview assets with:
 
 ```bash
 QT_QPA_PLATFORM=offscreen python tools/generate_assets.py

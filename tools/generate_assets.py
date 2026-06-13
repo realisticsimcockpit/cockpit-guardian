@@ -97,6 +97,26 @@ def render_logo(svg_path: Path, png_path: Path, width: int, height: int) -> None
         raise RuntimeError(f"Could not write {png_path}")
 
 
+def render_language_icon(text: str, png_path: Path) -> None:
+    image = QImage(96, 48, QImage.Format.Format_ARGB32)
+    image.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(image)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setBrush(QColor("#020617"))
+    painter.setPen(QColor("#ffffff"))
+    painter.drawRoundedRect(QRectF(1, 1, 94, 46), 8, 8)
+    painter.setPen(QColor(BRAND_RED))
+    painter.drawRoundedRect(QRectF(2.5, 2.5, 91, 43), 7, 7)
+    painter.setPen(QColor("#ffffff"))
+    painter.setFont(QFont("Arial", 20, QFont.Weight.Bold))
+    painter.drawText(QRectF(0, 0, 96, 44), Qt.AlignmentFlag.AlignCenter, text)
+    painter.setPen(QColor(BRAND_RED))
+    painter.drawLine(18, 40, 78, 40)
+    painter.end()
+    if not image.save(str(png_path)):
+        raise RuntimeError(f"Could not write {png_path}")
+
+
 def render_ico(svg_path: Path, ico_path: Path) -> None:
     renderer = QSvgRenderer(str(svg_path))
     image = QImage(256, 256, QImage.Format.Format_ARGB32)
@@ -170,6 +190,8 @@ def main() -> int:
         write_svg(svg, tray_svg(color, glyph))
         render_svg(svg, ASSET_DIR / f"{name}.png", 64)
 
+    render_language_icon("ENG", ASSET_DIR / "lang_eng.png")
+    render_language_icon("FR", ASSET_DIR / "lang_fr.png")
     render_preview()
     print(f"Generated assets in {ASSET_DIR}")
     app.quit()

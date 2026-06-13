@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, QSize, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -37,6 +37,45 @@ from .assets import asset_icon, asset_pixmap
 from .theme import SEVERITY_COLORS, STATUS_COLORS, app_stylesheet
 from .tray import GuardianTray
 from ..services.integration_notices import INTEGRATION_NOTICES
+
+
+WINDOW_WIDTH = 724
+WINDOW_HEIGHT = 543
+
+DASHBOARD_TEXT = {
+    "en": {
+        "status_initial": "Save config, then run a check.",
+        "status_ready": "All saved cockpit devices look ready.",
+        "save": "Save",
+        "check": "Check",
+        "restore": "Restore",
+        "rollback": "Rollback",
+        "export": "Export",
+        "import": "Import",
+        "device_headers": ["Device", "Role", "Status", "USB"],
+        "joystick_order": "Joystick Order",
+        "usb_software": "USB Health and Software",
+        "area": "Area",
+        "status": "Status",
+        "tabs": ["Dashboard", "USB Health", "Logs", "Settings", "Advanced"],
+    },
+    "fr": {
+        "status_initial": "Sauvegardez, puis controlez.",
+        "status_ready": "Les peripheriques sauvegardes sont prets.",
+        "save": "Sauver",
+        "check": "Controle",
+        "restore": "Restaurer",
+        "rollback": "Retour",
+        "export": "Exporter",
+        "import": "Importer",
+        "device_headers": ["Peripherique", "Role", "Statut", "USB"],
+        "joystick_order": "Ordre Joystick",
+        "usb_software": "USB et logiciels",
+        "area": "Zone",
+        "status": "Statut",
+        "tabs": ["Dashboard", "USB Health", "Logs", "Settings", "Avance"],
+    },
+}
 
 
 class BackgroundWidget(QWidget):
@@ -88,7 +127,7 @@ class MainWindow(QMainWindow):
         self.settings = self.controller.load_settings()
         self.setWindowTitle("Cockpit Guardian")
         self.setWindowIcon(asset_icon("app_icon_256.png"))
-        self.resize(1448, 1086)
+        self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
         self._threads: list[QThread] = []
         self._workers: dict[QThread, Worker] = {}
         self._busy_operations = 0
@@ -105,6 +144,8 @@ class MainWindow(QMainWindow):
         self._build_logs_tab()
         self._build_settings_tab()
         self._build_advanced_tab()
+        self._refresh_dashboard_texts()
+        self._update_language_buttons()
 
         self.tray = GuardianTray(self)
         self.tray.open_requested.connect(self.show_and_raise)
@@ -123,14 +164,14 @@ class MainWindow(QMainWindow):
         page = QWidget()
         page.setObjectName("DashboardPage")
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(18, 16, 18, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(9, 8, 9, 9)
+        layout.setSpacing(7)
 
         self.dashboard_header = QFrame()
         self.dashboard_header.setObjectName("DashboardHeader")
         header_layout = QHBoxLayout(self.dashboard_header)
-        header_layout.setContentsMargins(18, 12, 18, 12)
-        header_layout.setSpacing(22)
+        header_layout.setContentsMargins(10, 6, 10, 6)
+        header_layout.setSpacing(10)
 
         status_block = QWidget()
         status_block.setObjectName("StatusBlock")
@@ -141,6 +182,7 @@ class MainWindow(QMainWindow):
         self.status_title.setObjectName("StatusTitle")
         self.status_subtitle = QLabel("Save your cockpit configuration, then run a check.")
         self.status_subtitle.setObjectName("StatusSubtitle")
+        self.status_subtitle.setWordWrap(True)
         status_layout.addWidget(self.status_title)
         status_layout.addWidget(self.status_subtitle)
         status_layout.addStretch(1)
@@ -153,28 +195,57 @@ class MainWindow(QMainWindow):
         if not logo.isNull():
             self.dashboard_logo.setPixmap(
                 logo.scaled(
-                    420,
-                    126,
+                    210,
+                    63,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        self.dashboard_logo.setMaximumHeight(130)
+        self.dashboard_logo.setMaximumHeight(66)
         header_layout.addWidget(self.dashboard_logo, 3)
+
+        right_panel = QWidget()
+        right_panel.setObjectName("RightPanel")
+        right_layout = QVBoxLayout(right_panel)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(5)
+
+        language_layout = QHBoxLayout()
+        language_layout.setContentsMargins(0, 0, 0, 0)
+        language_layout.addStretch(1)
+        self.language_eng_button = QPushButton()
+        self.language_eng_button.setObjectName("LanguageButton")
+        self.language_eng_button.setCheckable(True)
+        self.language_eng_button.setIcon(asset_icon("lang_eng.png"))
+        self.language_eng_button.setIconSize(QSize(36, 18))
+        self.language_eng_button.setFixedSize(44, 24)
+        self.language_eng_button.setToolTip("Switch dashboard language to English")
+        self.language_eng_button.clicked.connect(lambda: self._set_language("en"))
+        self.language_fr_button = QPushButton()
+        self.language_fr_button.setObjectName("LanguageButton")
+        self.language_fr_button.setCheckable(True)
+        self.language_fr_button.setIcon(asset_icon("lang_fr.png"))
+        self.language_fr_button.setIconSize(QSize(36, 18))
+        self.language_fr_button.setFixedSize(44, 24)
+        self.language_fr_button.setToolTip("Basculer le dashboard en francais")
+        self.language_fr_button.clicked.connect(lambda: self._set_language("fr"))
+        language_layout.addWidget(self.language_eng_button)
+        language_layout.addWidget(self.language_fr_button)
+        right_layout.addLayout(language_layout)
 
         action_panel = QWidget()
         action_panel.setObjectName("ActionPanel")
         action_layout = QGridLayout(action_panel)
         action_layout.setContentsMargins(0, 0, 0, 0)
-        action_layout.setHorizontalSpacing(8)
-        action_layout.setVerticalSpacing(8)
-        self.save_button = QPushButton("Save Configuration")
+        action_layout.setHorizontalSpacing(5)
+        action_layout.setVerticalSpacing(5)
+        self.save_button = QPushButton("Save")
         self.save_button.setObjectName("PrimaryButton")
-        self.check_button = QPushButton("Check Now")
+        self.check_button = QPushButton("Check")
         self.restore_button = QPushButton("Restore")
-        self.rollback_button = QPushButton("Rollback Last Restore")
-        self.export_config_button = QPushButton("Export Config Backup")
-        self.import_config_button = QPushButton("Import Config Backup")
+        self.rollback_button = QPushButton("Rollback")
+        self.export_config_button = QPushButton("Export")
+        self.import_config_button = QPushButton("Import")
         self.save_button.clicked.connect(self.save_configuration)
         self.check_button.clicked.connect(self.check_now)
         self.restore_button.clicked.connect(self.restore)
@@ -194,33 +265,41 @@ class MainWindow(QMainWindow):
             ]
         ):
             action_layout.addWidget(button, index // 2, index % 2)
-        header_layout.addWidget(action_panel, 2)
+        right_layout.addWidget(action_panel)
+        header_layout.addWidget(right_panel, 2)
         layout.addWidget(self.dashboard_header)
         self._apply_status_style(GlobalStatus.CHECK_NOT_DONE)
 
-        self.device_table = QTableWidget(0, 5)
-        self.device_table.setHorizontalHeaderLabels(["Device", "Role", "Status", "USB", "Detail"])
+        self.device_table = QTableWidget(0, 4)
+        self.device_table.setHorizontalHeaderLabels(["Device", "Role", "Status", "USB"])
         self.device_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.device_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.device_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.device_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        self.device_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        self.device_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self.device_table.verticalHeader().setVisible(False)
         self.device_table.setAlternatingRowColors(True)
-        layout.addWidget(self.device_table, 3)
+        self.device_table.setShowGrid(True)
+        self.device_table.setGridStyle(Qt.PenStyle.SolidLine)
+        layout.addWidget(self.device_table, 2)
 
         bottom = QHBoxLayout()
         self.joystick_table = QTableWidget(0, 2)
         self.joystick_table.setHorizontalHeaderLabels(["#", "Joystick Order"])
         self.joystick_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.joystick_table.verticalHeader().setVisible(False)
-        bottom.addWidget(self._panel("Joystick Order", self.joystick_table), 2)
+        self.joystick_table.setShowGrid(True)
+        self.joystick_table.setGridStyle(Qt.PenStyle.SolidLine)
+        self.joystick_panel = self._panel("Joystick Order", self.joystick_table)
+        self.joystick_panel_title = self.joystick_panel.title_label
+        bottom.addWidget(self.joystick_panel, 2)
 
         self.summary_tree = QTreeWidget()
         self.summary_tree.setHeaderLabels(["Area", "Status"])
         self.summary_tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.summary_tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        bottom.addWidget(self._panel("USB Health and Software", self.summary_tree), 3)
+        self.summary_panel = self._panel("USB Health and Software", self.summary_tree)
+        self.summary_panel_title = self.summary_panel.title_label
+        bottom.addWidget(self.summary_panel, 3)
         layout.addLayout(bottom, 2)
 
         self.tabs.addTab(page, "Dashboard")
@@ -235,6 +314,8 @@ class MainWindow(QMainWindow):
         self.usb_table.setHorizontalHeaderLabels(["Time", "Severity", "Device", "Event"])
         self.usb_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self.usb_table.verticalHeader().setVisible(False)
+        self.usb_table.setShowGrid(True)
+        self.usb_table.setGridStyle(Qt.PenStyle.SolidLine)
         layout.addWidget(self.usb_table)
         self.tabs.addTab(page, "USB Health")
 
@@ -316,6 +397,8 @@ class MainWindow(QMainWindow):
         self.priority_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.priority_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.priority_table.verticalHeader().setVisible(False)
+        self.priority_table.setShowGrid(True)
+        self.priority_table.setGridStyle(Qt.PenStyle.SolidLine)
         layout.addWidget(self.priority_table)
         self._load_priority_table()
         layout.addStretch(1)
@@ -335,14 +418,14 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(page, "Advanced / Debug")
         self.refresh_advanced()
 
-    @staticmethod
-    def _panel(title: str, child: QWidget) -> QWidget:
+    def _panel(self, title: str, child: QWidget) -> QWidget:
         panel = QWidget()
         layout = QVBoxLayout(panel)
         label = QLabel(title)
-        label.setStyleSheet("font-size: 16px; font-weight: 700;")
+        label.setStyleSheet("font-size: 12px; font-weight: 700;")
         layout.addWidget(label)
         layout.addWidget(child)
+        panel.title_label = label
         return panel
 
     def _run_async(self, fn, callback) -> None:
@@ -458,7 +541,7 @@ class MainWindow(QMainWindow):
 
     def update_report(self, report: CheckReport) -> None:
         self.status_title.setText(report.global_status.value.upper())
-        self.status_subtitle.setText(report.issues[0] if report.issues else "All saved cockpit devices look ready.")
+        self.status_subtitle.setText(report.issues[0] if report.issues else self._dashboard_text("status_ready"))
         self._apply_status_style(report.global_status)
         self.tray.update_report(report)
         self._update_device_table(report)
@@ -472,9 +555,49 @@ class MainWindow(QMainWindow):
     def _apply_status_style(self, status: GlobalStatus) -> None:
         color = STATUS_COLORS.get(status, "#6b7280")
         self.status_title.setStyleSheet(
-            f"font-size: 28px; font-weight: 800; color: {color}; background: transparent;"
+            f"font-size: 16px; font-weight: 800; color: {color}; background: transparent;"
         )
-        self.status_subtitle.setStyleSheet("color: #d1d5db; background: transparent;")
+        self.status_subtitle.setStyleSheet("font-size: 10px; color: #d1d5db; background: transparent;")
+
+    def _dashboard_text(self, key: str):
+        language = self.settings.language if self.settings.language in DASHBOARD_TEXT else "en"
+        return DASHBOARD_TEXT[language][key]
+
+    def _refresh_dashboard_texts(self) -> None:
+        self.status_subtitle.setText(self._dashboard_text("status_initial"))
+        self.save_button.setText(self._dashboard_text("save"))
+        self.check_button.setText(self._dashboard_text("check"))
+        self.restore_button.setText(self._dashboard_text("restore"))
+        self.rollback_button.setText(self._dashboard_text("rollback"))
+        self.export_config_button.setText(self._dashboard_text("export"))
+        self.import_config_button.setText(self._dashboard_text("import"))
+        self.device_table.setHorizontalHeaderLabels(self._dashboard_text("device_headers"))
+        self.joystick_table.setHorizontalHeaderLabels(["#", self._dashboard_text("joystick_order")])
+        self.summary_tree.setHeaderLabels([self._dashboard_text("area"), self._dashboard_text("status")])
+        self.joystick_panel_title.setText(self._dashboard_text("joystick_order"))
+        self.summary_panel_title.setText(self._dashboard_text("usb_software"))
+        tabs = self._dashboard_text("tabs")
+        for index, label in enumerate(tabs):
+            if index < self.tabs.count():
+                self.tabs.setTabText(index, label)
+        if self.controller.last_report:
+            report = self.controller.last_report
+            self.status_subtitle.setText(report.issues[0] if report.issues else self._dashboard_text("status_ready"))
+
+    def _set_language(self, language: str) -> None:
+        if language not in DASHBOARD_TEXT:
+            return
+        self.settings.language = language
+        if hasattr(self, "language_select"):
+            self.language_select.setCurrentText(language)
+        self.controller.save_settings(self.settings)
+        self._refresh_dashboard_texts()
+        self._update_language_buttons()
+
+    def _update_language_buttons(self) -> None:
+        language = self.settings.language if self.settings.language in DASHBOARD_TEXT else "en"
+        self.language_eng_button.setChecked(language == "en")
+        self.language_fr_button.setChecked(language == "fr")
 
     def _update_device_table(self, report: CheckReport) -> None:
         self.device_table.setRowCount(0)
@@ -487,9 +610,11 @@ class MainWindow(QMainWindow):
             detail = check.detail or ""
             if check.ffb_clipping_percent is not None:
                 detail = f"FFB clipping {check.ffb_clipping_percent:.0f}% - Reduce in-game FFB gain"
-            values = [check.label, role, check.severity.value.replace("_", " ").title(), usb, detail or check.message]
+            tooltip = detail or check.message
+            values = [check.label, role, check.severity.value.replace("_", " ").title(), usb]
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
+                item.setToolTip(tooltip)
                 if column == 2:
                     item.setForeground(QColor(SEVERITY_COLORS.get(check.severity, "#e5e7eb")))
                 self.device_table.setItem(row, column, item)
@@ -552,6 +677,8 @@ class MainWindow(QMainWindow):
         self.controller.save_settings(self.settings)
         self._save_device_priorities()
         self.apply_theme()
+        self._refresh_dashboard_texts()
+        self._update_language_buttons()
         QMessageBox.information(self, "Settings", "Settings saved.")
 
     def _load_priority_table(self) -> None:
