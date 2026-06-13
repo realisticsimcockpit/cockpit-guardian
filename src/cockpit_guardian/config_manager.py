@@ -10,6 +10,9 @@ from .models import Settings, Snapshot, settings_from_dict, snapshot_from_dict, 
 from .paths import AppPaths
 
 
+CONFIG_BACKUP_SCHEMA = "cockpit_guardian.config_backup.v1"
+
+
 class ConfigManager:
     def __init__(self, paths: AppPaths | None = None) -> None:
         self.paths = paths or AppPaths()
@@ -77,6 +80,47 @@ class ConfigManager:
     def latest_backup(self) -> Path | None:
         backups = sorted(self.paths.backups.glob("*.json"), key=lambda item: item.stat().st_mtime)
         return backups[-1] if backups else None
+
+    def default_config_backup_name(self, profile_name: str | None = None) -> str:
+        safe_profile = "".join(
+            character if character.isalnum() or character in {"-", "_"} else "_"
+            for character in (profile_name or "cockpit").strip()
+        ).strip("_")
+        if not safe_profile:
+            safe_profile = "cockpit"
+        stamp = utc_now_iso().replace(":", "-")
+        return f"cockpit_guardian_{safe_profile}_{stamp}.json"
+
+    def export_config_backup(self, target: Path) -> Path:
+        snapshot = self.load_snapshot()
+        if snapshot is None:
+            raise ValueError("No saved configuration found. Use Save Configuration first.")
+        settings = self.load_settings()
+        bundle = {
+            "schema": CONFIG_BACKUP_SCHEMA,
+            "exported_at": utc_now_iso(),
+            "app_version": __version__,
+            "recommended_storage": "Store this file in a cloud-synced folder before reinstalling Windows.",
+            "snapshot": to_plain(snapshot),
+            "settings": to_plain(settings),
+        }
+        self._write_json(target, bundle)
+        return target
+
+    def import_config_backup(self, source: Path) -> Path:
+        bundle = self._read_json(source)
+        snapshot_data = bundle.get("snapshot")
+        settings_data = bundle.get("settings")
+        if snapshot_data is None:
+            raise ValueError("This file does not contain a Cockpit Guardian snapshot.")
+
+        snapshot = snapshot_from_dict(snapshot_data)
+        settings = settings_from_dict(settings_data) if settings_data is not None else None
+        backup = self.make_backup("before_config_import", payload={"source": str(source)})
+        self.save_snapshot(snapshot)
+        if settings is not None:
+            self.save_settings(settings)
+        return backup
 
     def export_logs(self, target: Path) -> Path:
         target.parent.mkdir(parents=True, exist_ok=True)

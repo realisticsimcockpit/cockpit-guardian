@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 
 from .check_engine import CheckEngine
 from .config_manager import ConfigManager
@@ -72,3 +73,20 @@ class AppController:
         action = self.restore_engine.rollback_last_restore()
         self.last_report = self.check_now()
         return action
+
+    def default_config_backup_name(self) -> str:
+        snapshot = self.load_snapshot()
+        settings = self.load_settings()
+        profile_name = snapshot.profile_name if snapshot else settings.profile_name
+        return self.config.default_config_backup_name(profile_name)
+
+    def export_config_backup(self, target: Path) -> Path:
+        exported = self.config.export_config_backup(target)
+        self.logger.info("Configuration backup exported to %s", exported)
+        return exported
+
+    def import_config_backup(self, source: Path) -> Path:
+        backup = self.config.import_config_backup(source)
+        self.logger.info("Configuration backup imported from %s", source)
+        self.last_report = self.check_now()
+        return backup

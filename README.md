@@ -81,6 +81,15 @@ Runtime checks are also tuned to avoid repeated heavy Windows scans: installed
 software, USB Health, and HID detection use short caches, and deep Windows serial
 metadata enrichment is disabled by default.
 
+## Reinstalling Windows
+
+The Dashboard includes `Export Config Backup` and `Import Config Backup` for the
+main recovery workflow after a Windows reinstall. Export the backup to a
+cloud-synced folder before reinstalling Windows, then import it after installing
+Cockpit Guardian again.
+
+Read [Configuration Backup](docs/CONFIG_BACKUP.md) for the full workflow.
+
 ## Data files
 
 Runtime files are stored in the user data directory:
@@ -134,6 +143,7 @@ with real SimHub, Arduino, ESP, or Windows hardware. In short:
 Main docs:
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [Configuration backup](docs/CONFIG_BACKUP.md)
 - [Integration notices](docs/INTEGRATION_NOTICES.md)
 - [Windows installer](docs/WINDOWS_INSTALLER.md)
 - [Release process](docs/RELEASE_PROCESS.md)

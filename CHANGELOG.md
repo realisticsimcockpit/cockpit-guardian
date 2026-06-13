@@ -16,3 +16,4 @@ All notable changes to Cockpit Guardian are documented here.
 - Integration notices for SimHub, Arduino, ESP boards, and Windows restore behavior.
 - Nuitka standalone build and Inno Setup installer scripts.
 - GitHub Actions CI on Windows with Python 3.12.
+- Dashboard export/import of portable configuration backups for Windows reinstall recovery.

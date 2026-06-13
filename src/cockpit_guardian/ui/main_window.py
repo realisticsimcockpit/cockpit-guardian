@@ -117,6 +117,19 @@ class MainWindow(QMainWindow):
         button_layout.addStretch(1)
         layout.addLayout(button_layout)
 
+        backup_layout = QHBoxLayout()
+        self.export_config_button = QPushButton("Export Config Backup")
+        self.import_config_button = QPushButton("Import Config Backup")
+        self.export_config_button.clicked.connect(self.export_config_backup)
+        self.import_config_button.clicked.connect(self.import_config_backup)
+        self.export_config_button.setToolTip("Choose a cloud-synced folder such as OneDrive, Google Drive, Dropbox, iCloud, or a NAS.")
+        self.import_config_button.setToolTip("Import this backup after reinstalling Windows, then run Restore.")
+        backup_layout.addWidget(self.export_config_button)
+        backup_layout.addWidget(self.import_config_button)
+        backup_layout.addWidget(QLabel("Keep this backup in a cloud folder before reinstalling Windows."))
+        backup_layout.addStretch(1)
+        layout.addLayout(backup_layout)
+
         self.device_table = QTableWidget(0, 4)
         self.device_table.setHorizontalHeaderLabels(["Device", "Role", "Status", "Detail"])
         self.device_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
@@ -290,7 +303,14 @@ class MainWindow(QMainWindow):
         self._workers.pop(thread, None)
 
     def _set_busy(self, busy: bool) -> None:
-        for button in [self.save_button, self.check_button, self.restore_button, self.rollback_button]:
+        for button in [
+            self.save_button,
+            self.check_button,
+            self.restore_button,
+            self.rollback_button,
+            self.export_config_button,
+            self.import_config_button,
+        ]:
             button.setDisabled(busy)
 
     def save_configuration(self) -> None:
@@ -308,6 +328,36 @@ class MainWindow(QMainWindow):
     def rollback(self) -> None:
         self._run_async(self.controller.rollback_last_restore, self._rollback_finished)
 
+    def export_config_backup(self) -> None:
+        default_path = Path.home() / self.controller.default_config_backup_name()
+        target, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Config Backup",
+            str(default_path),
+            "Cockpit Guardian backup (*.json);;JSON files (*.json)",
+        )
+        if not target:
+            return
+        self._run_async(lambda: self.controller.export_config_backup(Path(target)), self._export_config_finished)
+
+    def import_config_backup(self) -> None:
+        source, _ = QFileDialog.getOpenFileName(
+            self,
+            "Import Config Backup",
+            str(Path.home()),
+            "Cockpit Guardian backup (*.json);;JSON files (*.json)",
+        )
+        if not source:
+            return
+        answer = QMessageBox.question(
+            self,
+            "Import Config Backup",
+            "Importing will replace the current saved configuration after creating a local safety backup. Continue?",
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        self._run_async(lambda: self.controller.import_config_backup(Path(source)), self._import_config_finished)
+
     def _restore_finished(self, report: RestoreReport) -> None:
         QMessageBox.information(self, "Restore", "\n".join(action.message for action in report.actions))
         if self.controller.last_report:
@@ -315,6 +365,22 @@ class MainWindow(QMainWindow):
 
     def _rollback_finished(self, action) -> None:
         QMessageBox.information(self, "Rollback Last Restore", action.message)
+        if self.controller.last_report:
+            self.update_report(self.controller.last_report)
+
+    def _export_config_finished(self, path: Path) -> None:
+        QMessageBox.information(
+            self,
+            "Export Config Backup",
+            f"Configuration backup exported to:\n{path}\n\nStore this file in a cloud-synced folder before reinstalling Windows.",
+        )
+
+    def _import_config_finished(self, backup_path: Path) -> None:
+        QMessageBox.information(
+            self,
+            "Import Config Backup",
+            f"Configuration imported. A local safety backup was created at:\n{backup_path}\n\nRun Restore if the check reports changed COM ports or joystick order.",
+        )
         if self.controller.last_report:
             self.update_report(self.controller.last_report)
 
