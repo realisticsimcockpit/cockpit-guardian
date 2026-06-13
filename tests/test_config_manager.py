@@ -59,7 +59,7 @@ class ConfigManagerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as source_tmp, tempfile.TemporaryDirectory() as target_tmp:
             source = ConfigManager(AppPaths(source_tmp))
             target = ConfigManager(AppPaths(target_tmp))
-            settings = Settings(profile_name="Cloud Rig", ffb_clipping_threshold=12.0)
+            settings = Settings(profile_name="Cloud Rig", ffb_clipping_threshold=12.0, initial_deep_windows_scan_done=True)
             device = CockpitDevice(
                 id="ddu-1",
                 display_name="DDU",
@@ -80,6 +80,7 @@ class ConfigManagerTests(unittest.TestCase):
             self.assertEqual(imported_snapshot.devices[0].display_name, "DDU")
             self.assertEqual(imported_settings.profile_name, "Cloud Rig")
             self.assertEqual(imported_settings.ffb_clipping_threshold, 12.0)
+            self.assertFalse(imported_settings.initial_deep_windows_scan_done)
 
     def test_config_backup_export_requires_saved_snapshot(self):
         with tempfile.TemporaryDirectory() as tmp:

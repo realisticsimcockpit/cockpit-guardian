@@ -80,7 +80,8 @@ standalone install starts faster and avoids temporary extraction on each launch.
 
 Runtime checks are also tuned to avoid repeated heavy Windows scans: installed
 software, USB Health, and HID detection use short caches, and deep Windows serial
-metadata enrichment is disabled by default.
+metadata enrichment runs once on first launch, then remains user-controlled in
+Settings.
 
 ## Reinstalling Windows
 

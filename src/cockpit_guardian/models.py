@@ -175,6 +175,7 @@ class Settings:
     language: str = "en"
     simhub_required: bool = False
     deep_windows_scan: bool = False
+    initial_deep_windows_scan_done: bool = False
     software_scan_interval_seconds: int = 300
     usb_health_scan_interval_seconds: int = 120
 

@@ -116,6 +116,8 @@ class ConfigManager:
 
         snapshot = snapshot_from_dict(snapshot_data)
         settings = settings_from_dict(settings_data) if settings_data is not None else None
+        if settings is not None:
+            settings.initial_deep_windows_scan_done = False
         backup = self.make_backup("before_config_import", payload={"source": str(source)})
         self.save_snapshot(snapshot)
         if settings is not None:

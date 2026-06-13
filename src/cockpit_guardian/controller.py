@@ -23,6 +23,7 @@ class AppController:
     software_detector: SoftwareDetector
     logger: logging.Logger
     last_report: CheckReport | None = None
+    _initial_deep_scan_used_this_session: bool = False
 
     def load_settings(self) -> Settings:
         return self.config.load_settings()
@@ -36,7 +37,8 @@ class AppController:
 
     def save_configuration(self) -> Snapshot:
         settings = self.load_settings()
-        devices = self.detector.detect_all(include_windows_metadata=settings.deep_windows_scan)
+        deep_scan = self._deep_scan_for_operation(settings, persist_initial=True)
+        devices = self.detector.detect_all(include_windows_metadata=deep_scan)
         software = [
             item
             for item in self.software_detector.detect(
@@ -52,16 +54,32 @@ class AppController:
 
     def check_now(self) -> CheckReport:
         settings = self.load_settings()
+        snapshot = self.load_snapshot()
+        deep_scan = self._deep_scan_for_operation(settings, persist_initial=snapshot is not None)
         report = self.check_engine.run_check(
-            self.load_snapshot(),
+            snapshot,
             simhub_required=settings.simhub_required,
             ffb_clipping_threshold=settings.ffb_clipping_threshold,
-            deep_windows_scan=settings.deep_windows_scan,
+            deep_windows_scan=deep_scan,
             software_scan_interval_seconds=settings.software_scan_interval_seconds,
             usb_health_scan_interval_seconds=settings.usb_health_scan_interval_seconds,
         )
         self.last_report = report
         return report
+
+    def _deep_scan_for_operation(self, settings: Settings, persist_initial: bool) -> bool:
+        if settings.initial_deep_windows_scan_done:
+            return settings.deep_windows_scan
+        if not persist_initial and self._initial_deep_scan_used_this_session:
+            return settings.deep_windows_scan
+        self._initial_deep_scan_used_this_session = True
+        if not persist_initial:
+            self.logger.info("Initial Deep Windows scan enabled for first startup check")
+            return True
+        settings.initial_deep_windows_scan_done = True
+        self.config.save_settings(settings)
+        self.logger.info("Initial Deep Windows scan enabled for baseline capture")
+        return True
 
     def restore(self) -> RestoreReport:
         report = self.last_report or self.check_now()

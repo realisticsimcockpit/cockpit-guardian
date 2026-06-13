@@ -470,6 +470,7 @@ class MainWindow(QMainWindow):
             language=self.language_select.currentText(),
             simhub_required=self.simhub_required.isChecked(),
             deep_windows_scan=self.deep_windows_scan.isChecked(),
+            initial_deep_windows_scan_done=self.settings.initial_deep_windows_scan_done,
             software_scan_interval_seconds=int(self.software_scan_interval.value()),
             usb_health_scan_interval_seconds=int(self.usb_health_scan_interval.value()),
         )

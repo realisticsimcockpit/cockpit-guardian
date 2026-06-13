@@ -75,6 +75,14 @@ For the best topology hints, enable `Deep Windows scan` in Settings. With the
 default lightweight scan, Cockpit Guardian avoids extra PowerShell/PnP queries and
 may show `USB speed unknown` for devices that require hub topology data.
 
+Cockpit Guardian runs one Deep Windows scan automatically on first launch so the
+initial cockpit baseline captures richer USB topology. The Settings toggle remains
+available for later hardware changes, such as adding a USB hub or moving devices.
+If no configuration has been saved yet, the first startup check can use the deep
+scan without marking the baseline as complete; the first `Save Configuration`
+still captures a deep scan. Imported config backups also reset this first-scan
+flag for the new Windows installation.
+
 ## Sources Checked
 
 - SimHub Custom Serial Devices wiki:
