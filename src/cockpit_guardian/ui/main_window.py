@@ -34,7 +34,7 @@ from PySide6.QtWidgets import (
 
 from .. import __version__
 from ..controller import AppController
-from ..models import CheckReport, DeviceKind, GlobalStatus, Priority, RestoreReport, Settings, Severity, SoftwareState, to_plain
+from ..models import CheckReport, DeviceBus, DeviceKind, GlobalStatus, Priority, RestoreReport, Settings, Severity, SoftwareState, to_plain
 from .assets import asset_icon, asset_pixmap
 from .theme import SEVERITY_COLORS, STATUS_COLORS, app_stylesheet
 from .tray import GuardianTray
@@ -48,7 +48,8 @@ YOUTUBE_URL = "https://www.youtube.com/@realisticsimcockpit"
 DASHBOARD_TEXT = {
     "en": {
         "logo_credit": "by REALISTIC SIMCOCKPIT",
-        "footer": "Author: REALISTIC SIMCOCKPIT",
+        "footer_prefix": "Author:",
+        "footer_version": "Version",
         "status_initial": "Save config, then run a check.",
         "status_ready": "All saved cockpit devices look ready.",
         "status_labels": {
@@ -77,13 +78,15 @@ DASHBOARD_TEXT = {
             DeviceKind.PEDALS: "Pedals",
             DeviceKind.SHIFTER: "Shifter",
             DeviceKind.HANDBRAKE: "Handbrake",
-            DeviceKind.BUTTON_BOX: "Boîtier boutons",
+            DeviceKind.BUTTON_BOX: "Button Box",
             DeviceKind.DDU: "DDU",
             DeviceKind.ARDUINO_SIMHUB: "Arduino SimHub",
             DeviceKind.WIND_SIMULATOR: "Wind Simulator",
             DeviceKind.OTHER: "Other",
         },
         "unknown": "Unknown",
+        "detected_com_status": "{com} detected",
+        "missing_device": "Missing",
         "com_ports": "COM Ports",
         "save": "Save",
         "check": "Check",
@@ -93,14 +96,14 @@ DASHBOARD_TEXT = {
         "import": "Import",
         "device_headers": ["Device", "Role", "Status", "USB"],
         "joystick_order": "Joystick Order",
+        "joystick_headers": ["#", "Joystick", "USB"],
         "usb_software": "USB Health and Software",
-        "area": "Area",
-        "status": "Status",
         "tabs": ["Dashboard", "USB Health", "Logs", "Settings", "Advanced"],
     },
     "fr": {
         "logo_credit": "par REALISTIC SIMCOCKPIT",
-        "footer": "Auteur : REALISTIC SIMCOCKPIT",
+        "footer_prefix": "Auteur :",
+        "footer_version": "Version",
         "status_initial": "Sauvegardez, puis contrôlez.",
         "status_ready": "Les périphériques sauvegardés sont prêts.",
         "status_labels": {
@@ -129,13 +132,15 @@ DASHBOARD_TEXT = {
             DeviceKind.PEDALS: "Pédales",
             DeviceKind.SHIFTER: "Boîte",
             DeviceKind.HANDBRAKE: "Frein à main",
-            DeviceKind.BUTTON_BOX: "Button Box",
+            DeviceKind.BUTTON_BOX: "Boîtier boutons",
             DeviceKind.DDU: "DDU",
             DeviceKind.ARDUINO_SIMHUB: "Arduino SimHub",
             DeviceKind.WIND_SIMULATOR: "Ventilation",
             DeviceKind.OTHER: "Autre",
         },
         "unknown": "Inconnu",
+        "detected_com_status": "{com} détecté",
+        "missing_device": "Absent",
         "com_ports": "COM Ports",
         "save": "Sauver",
         "check": "Contrôle",
@@ -145,9 +150,8 @@ DASHBOARD_TEXT = {
         "import": "Importer",
         "device_headers": ["Périphérique", "Rôle", "Statut", "USB"],
         "joystick_order": "Ordre Joystick",
+        "joystick_headers": ["#", "Joystick", "USB"],
         "usb_software": "USB et logiciels",
-        "area": "Zone",
-        "status": "Statut",
         "tabs": ["Tableau", "Santé USB", "Journaux", "Réglages", "Avancé"],
     },
 }
@@ -203,20 +207,6 @@ class SeparatorTableWidget(QTableWidget):
         painter.end()
 
 
-class SeparatorTreeWidget(QTreeWidget):
-    def paintEvent(self, event) -> None:  # noqa: N802 - Qt override
-        super().paintEvent(event)
-        painter = QPainter(self.viewport())
-        painter.setPen(QPen(QColor(255, 255, 255, 185), 1))
-        header = self.header()
-        for visual_index in range(header.count() - 1):
-            logical_index = header.logicalIndex(visual_index)
-            x = header.sectionViewportPosition(logical_index) + header.sectionSize(logical_index) - 1
-            if 0 < x < self.viewport().width() - 1:
-                painter.drawLine(x, 0, x, self.viewport().height())
-        painter.end()
-
-
 class Worker(QObject):
     finished = Signal(object)
     failed = Signal(str)
@@ -257,6 +247,9 @@ class MainWindow(QMainWindow):
         footer_layout.setContentsMargins(12, 3, 12, 5)
         footer_layout.setSpacing(6)
         footer_layout.addStretch(1)
+        self.footer_prefix_label = QLabel()
+        self.footer_prefix_label.setObjectName("FooterText")
+        footer_layout.addWidget(self.footer_prefix_label)
         self.footer_youtube_icon = QLabel()
         self.footer_youtube_icon.setObjectName("FooterYoutubeIcon")
         youtube = asset_pixmap("youtube_icon.png")
@@ -276,6 +269,9 @@ class MainWindow(QMainWindow):
         self.footer_label.setOpenExternalLinks(True)
         self.footer_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
         footer_layout.addWidget(self.footer_label)
+        self.footer_version_label = QLabel()
+        self.footer_version_label.setObjectName("FooterText")
+        footer_layout.addWidget(self.footer_version_label)
         footer_layout.addStretch(1)
         root_layout.addWidget(self.footer)
         self.setCentralWidget(self.background)
@@ -308,9 +304,8 @@ class MainWindow(QMainWindow):
     def _resize_dashboard_columns(self) -> None:
         if not hasattr(self, "device_table"):
             return
-        self._set_table_column_widths(self.device_table, [0.40, 0.16, 0.16, 0.28])
-        self._set_table_column_widths(self.joystick_table, [0.20, 0.80])
-        self._set_tree_column_widths(self.summary_tree, [0.36, 0.64])
+        self._set_table_column_widths(self.device_table, [0.34, 0.15, 0.15, 0.36])
+        self._set_table_column_widths(self.joystick_table, [0.12, 0.47, 0.41])
         if hasattr(self, "usb_table"):
             self._set_table_column_widths(self.usb_table, [0.20, 0.16, 0.26, 0.38])
         if hasattr(self, "priority_table"):
@@ -327,15 +322,6 @@ class MainWindow(QMainWindow):
             table.setColumnWidth(column, column_width)
             assigned += column_width
         table.setColumnWidth(len(ratios) - 1, max(42, width - assigned - 2))
-
-    @staticmethod
-    def _set_tree_column_widths(tree: QTreeWidget, ratios: list[float]) -> None:
-        width = tree.viewport().width()
-        if width <= 0:
-            return
-        first_width = max(54, int(width * ratios[0]))
-        tree.setColumnWidth(0, first_width)
-        tree.setColumnWidth(1, max(54, width - first_width - 2))
 
     def _build_dashboard(self) -> None:
         page = QWidget()
@@ -476,9 +462,9 @@ class MainWindow(QMainWindow):
 
         bottom = QHBoxLayout()
         bottom.setSpacing(14)
-        self.joystick_table = SeparatorTableWidget(0, 2)
-        self.joystick_table.setHorizontalHeaderLabels(["#", "Joystick Order"])
-        for column in range(2):
+        self.joystick_table = SeparatorTableWidget(0, 3)
+        self.joystick_table.setHorizontalHeaderLabels(["#", "Joystick Order", "USB"])
+        for column in range(3):
             self.joystick_table.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
         self.joystick_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.joystick_table.verticalHeader().setVisible(False)
@@ -489,13 +475,13 @@ class MainWindow(QMainWindow):
         self.joystick_panel_title = self.joystick_panel.title_label
         bottom.addWidget(self.joystick_panel, 2)
 
-        self.summary_tree = SeparatorTreeWidget()
-        self.summary_tree.setHeaderLabels(["Area", "Status"])
-        self.summary_tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
-        self.summary_tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
-        self.summary_tree.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.summary_tree.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
-        self.summary_panel = self._panel("USB Health and Software", self.summary_tree)
+        self.summary_content = QWidget()
+        self.summary_content.setObjectName("SummaryContent")
+        self.summary_checklist_layout = QVBoxLayout(self.summary_content)
+        self.summary_checklist_layout.setContentsMargins(0, 0, 0, 0)
+        self.summary_checklist_layout.setSpacing(0)
+        self.summary_checklist_layout.addStretch(1)
+        self.summary_panel = self._panel("USB Health and Software", self.summary_content)
         self.summary_panel_title = self.summary_panel.title_label
         bottom.addWidget(self.summary_panel, 3)
         layout.addLayout(bottom, 2)
@@ -792,8 +778,7 @@ class MainWindow(QMainWindow):
         self.logo_credit_label.setText(self._dashboard_text("logo_credit"))
         self.com_ports_panel_title.setText(self._dashboard_text("com_ports"))
         self.device_table.setHorizontalHeaderLabels(self._dashboard_text("device_headers"))
-        self.joystick_table.setHorizontalHeaderLabels(["#", self._dashboard_text("joystick_order")])
-        self.summary_tree.setHeaderLabels([self._dashboard_text("area"), self._dashboard_text("status")])
+        self.joystick_table.setHorizontalHeaderLabels(self._dashboard_text("joystick_headers"))
         self.joystick_panel_title.setText(self._dashboard_text("joystick_order"))
         self.summary_panel_title.setText(self._dashboard_text("usb_software"))
         tabs = self._dashboard_text("tabs")
@@ -803,10 +788,15 @@ class MainWindow(QMainWindow):
         if self.controller.last_report:
             report = self.controller.last_report
             self.status_subtitle.setText(report.issues[0] if report.issues else self._dashboard_text("status_ready"))
+            self._update_summary(report)
+        else:
+            self._clear_layout(self.summary_checklist_layout)
+            self.summary_checklist_layout.addStretch(1)
+        self.footer_prefix_label.setText(self._dashboard_text("footer_prefix"))
         self.footer_label.setText(
-            f'{self._dashboard_text("footer")} | Version {__version__} | '
-            f'<a style="color: #ffffff; text-decoration: none;" href="{YOUTUBE_URL}">youtube.com/@realisticsimcockpit</a>'
+            f'<a style="color: #ffffff; text-decoration: none;" href="{YOUTUBE_URL}">REALISTIC SIMCOCKPIT</a>'
         )
+        self.footer_version_label.setText(f'| {self._dashboard_text("footer_version")} {__version__}')
 
     def _set_language(self, language: str) -> None:
         if language not in DASHBOARD_TEXT:
@@ -816,6 +806,8 @@ class MainWindow(QMainWindow):
             self.language_select.setCurrentText(language)
         self.controller.save_settings(self.settings)
         self._refresh_dashboard_texts()
+        if self.controller.last_report:
+            self.update_report(self.controller.last_report)
         self._update_language_buttons()
 
     def _update_language_buttons(self) -> None:
@@ -826,22 +818,40 @@ class MainWindow(QMainWindow):
     def _update_device_table(self, report: CheckReport) -> None:
         self.device_table.setRowCount(0)
         for check in report.device_checks:
+            if not self._is_serial_check(check):
+                continue
+            device = check.expected or check.detected
+            usb_device = check.detected or check.expected
             row = self.device_table.rowCount()
             self.device_table.insertRow(row)
-            device = check.expected or check.detected
             role = self._device_kind_text(device.kind if device else None)
-            usb = self._usb_summary(device)
+            usb = self._usb_summary(usb_device)
             detail = check.detail or ""
             if check.ffb_clipping_percent is not None:
                 detail = f"FFB clipping {check.ffb_clipping_percent:.0f}% - Reduce in-game FFB gain"
             tooltip = detail or check.message
-            values = [check.label, role, self._severity_text(check.severity), usb]
+            values = [check.label, role, self._device_status_text(check), usb]
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 item.setToolTip(tooltip)
                 if column == 2:
                     item.setForeground(QColor(SEVERITY_COLORS.get(check.severity, "#e5e7eb")))
                 self.device_table.setItem(row, column, item)
+
+    @staticmethod
+    def _is_serial_check(check: DeviceCheck) -> bool:
+        return any(device.bus == DeviceBus.SERIAL or device.serial for device in (check.expected, check.detected) if device)
+
+    def _device_status_text(self, check: DeviceCheck) -> str:
+        if check.severity == Severity.OK:
+            return self._severity_text(check.severity)
+        expected_com = check.expected.serial.current_com if check.expected and check.expected.serial else None
+        detected_com = check.detected.serial.current_com if check.detected and check.detected.serial else None
+        if check.severity == Severity.RESTORE_NEEDED and expected_com and detected_com and expected_com != detected_com:
+            return self._dashboard_text("detected_com_status").format(com=detected_com)
+        if check.detected is None:
+            return self._dashboard_text("missing_device")
+        return self._severity_text(check.severity)
 
     def _usb_summary(self, device) -> str:
         if not device or not device.usb:
@@ -854,24 +864,106 @@ class MainWindow(QMainWindow):
 
     def _update_joystick(self, report: CheckReport) -> None:
         order = report.joystick_order.current or report.joystick_order.expected
+        devices_by_name = self._devices_by_joystick_name(report)
         self.joystick_table.setRowCount(0)
         for index, name in enumerate(order, start=1):
             row = self.joystick_table.rowCount()
             self.joystick_table.insertRow(row)
+            device = devices_by_name.get(name.lower())
             self.joystick_table.setItem(row, 0, QTableWidgetItem(str(index)))
             self.joystick_table.setItem(row, 1, QTableWidgetItem(name))
+            self.joystick_table.setItem(row, 2, QTableWidgetItem(self._usb_summary(device)))
         if not order:
             self.joystick_table.insertRow(0)
             self.joystick_table.setItem(0, 0, QTableWidgetItem("-"))
             self.joystick_table.setItem(0, 1, QTableWidgetItem(report.joystick_order.message))
+            self.joystick_table.setItem(0, 2, QTableWidgetItem("-"))
+
+    @staticmethod
+    def _devices_by_joystick_name(report: CheckReport) -> dict[str, object]:
+        devices: dict[str, object] = {}
+        for check in report.device_checks:
+            device = check.detected or check.expected
+            if not device:
+                continue
+            names = {device.label, device.display_name}
+            if device.hid and device.hid.name:
+                names.add(device.hid.name)
+            for name in names:
+                if name:
+                    devices[name.lower()] = device
+        return devices
 
     def _update_summary(self, report: CheckReport) -> None:
-        self.summary_tree.clear()
-        self.summary_tree.addTopLevelItem(QTreeWidgetItem([self._dashboard_text("usb_software"), report.usb_health.message]))
-        self.summary_tree.addTopLevelItem(QTreeWidgetItem([self._dashboard_text("joystick_order"), report.joystick_order.message]))
+        self._clear_layout(self.summary_checklist_layout)
+        self._add_checklist_row(
+            self.summary_checklist_layout,
+            self._dashboard_text("usb_software"),
+            report.usb_health.message,
+            report.usb_health.severity,
+        )
+        self._add_checklist_row(
+            self.summary_checklist_layout,
+            self._dashboard_text("joystick_order"),
+            report.joystick_order.message,
+            Severity.OK if report.joystick_order.ok else Severity.WARNING,
+        )
         for software in report.software:
-            self.summary_tree.addTopLevelItem(QTreeWidgetItem([software.name, self._software_state_text(software.state)]))
-        self.summary_tree.expandAll()
+            self._add_checklist_row(
+                self.summary_checklist_layout,
+                software.name,
+                self._software_state_text(software.state),
+                self._severity_from_software_state(software.state),
+            )
+        self.summary_checklist_layout.addStretch(1)
+
+    def _add_checklist_row(self, layout: QVBoxLayout, label: str, status: str, severity: Severity) -> None:
+        row = QWidget()
+        row.setObjectName("ChecklistRow")
+        row_layout = QHBoxLayout(row)
+        row_layout.setContentsMargins(0, 4, 0, 4)
+        row_layout.setSpacing(8)
+        label_widget = QLabel(label)
+        label_widget.setObjectName("ChecklistName")
+        label_widget.setMinimumWidth(110)
+        status_widget = QLabel(f"{self._status_icon(severity)} {status}")
+        status_widget.setObjectName("ChecklistStatus")
+        status_widget.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        status_widget.setWordWrap(True)
+        status_widget.setStyleSheet(f"color: {SEVERITY_COLORS.get(severity, '#e5e7eb')};")
+        row_layout.addWidget(label_widget, 0)
+        row_layout.addWidget(status_widget, 1)
+        layout.addWidget(row)
+        separator = QFrame()
+        separator.setObjectName("ChecklistSeparator")
+        separator.setFrameShape(QFrame.Shape.HLine)
+        layout.addWidget(separator)
+
+    @staticmethod
+    def _status_icon(severity: Severity) -> str:
+        if severity == Severity.OK:
+            return "✓"
+        if severity in {Severity.WARNING, Severity.RESTORE_NEEDED, Severity.INFO}:
+            return "⚠"
+        return "✕"
+
+    @staticmethod
+    def _severity_from_software_state(state: SoftwareState) -> Severity:
+        if state == SoftwareState.RUNNING:
+            return Severity.OK
+        if state == SoftwareState.INSTALLED_CLOSED:
+            return Severity.WARNING
+        if state == SoftwareState.REQUIRED_MISSING:
+            return Severity.CRITICAL
+        return Severity.INFO
+
+    @staticmethod
+    def _clear_layout(layout) -> None:
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
 
     def _update_usb(self, report: CheckReport) -> None:
         self.usb_score.setText(f"Stability score: {report.usb_health.stability_score}")
