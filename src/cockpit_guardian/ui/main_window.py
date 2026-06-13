@@ -5,6 +5,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QSize, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QCheckBox,
     QComboBox,
@@ -33,7 +34,7 @@ from PySide6.QtWidgets import (
 
 from .. import __version__
 from ..controller import AppController
-from ..models import CheckReport, GlobalStatus, Priority, RestoreReport, Settings, to_plain
+from ..models import CheckReport, DeviceKind, GlobalStatus, Priority, RestoreReport, Settings, Severity, SoftwareState, to_plain
 from .assets import asset_icon, asset_pixmap
 from .theme import SEVERITY_COLORS, STATUS_COLORS, app_stylesheet
 from .tray import GuardianTray
@@ -50,6 +51,39 @@ DASHBOARD_TEXT = {
         "footer": "Author: REALISTIC SIMCOCKPIT",
         "status_initial": "Save config, then run a check.",
         "status_ready": "All saved cockpit devices look ready.",
+        "status_labels": {
+            GlobalStatus.CHECK_NOT_DONE: "Check Not Done",
+            GlobalStatus.COCKPIT_READY: "Cockpit Ready",
+            GlobalStatus.WARNING: "Warning",
+            GlobalStatus.RESTORE_NEEDED: "Restore Needed",
+            GlobalStatus.CRITICAL_DEVICE_MISSING: "Critical Device Missing",
+        },
+        "severity_labels": {
+            Severity.OK: "OK",
+            Severity.INFO: "Info",
+            Severity.WARNING: "Warning",
+            Severity.RESTORE_NEEDED: "Restore Needed",
+            Severity.CRITICAL: "Critical",
+        },
+        "software_states": {
+            SoftwareState.RUNNING: "Running",
+            SoftwareState.INSTALLED_CLOSED: "Installed but closed",
+            SoftwareState.NOT_DETECTED: "Not detected",
+            SoftwareState.REQUIRED_MISSING: "Required missing",
+            SoftwareState.OPTIONAL_MISSING: "Optional missing",
+        },
+        "device_kinds": {
+            DeviceKind.WHEEL: "Wheel",
+            DeviceKind.PEDALS: "Pedals",
+            DeviceKind.SHIFTER: "Shifter",
+            DeviceKind.HANDBRAKE: "Handbrake",
+            DeviceKind.BUTTON_BOX: "Boîtier boutons",
+            DeviceKind.DDU: "DDU",
+            DeviceKind.ARDUINO_SIMHUB: "Arduino SimHub",
+            DeviceKind.WIND_SIMULATOR: "Wind Simulator",
+            DeviceKind.OTHER: "Other",
+        },
+        "unknown": "Unknown",
         "com_ports": "COM Ports",
         "save": "Save",
         "check": "Check",
@@ -67,21 +101,54 @@ DASHBOARD_TEXT = {
     "fr": {
         "logo_credit": "par REALISTIC SIMCOCKPIT",
         "footer": "Auteur : REALISTIC SIMCOCKPIT",
-        "status_initial": "Sauvegardez, puis controlez.",
-        "status_ready": "Les peripheriques sauvegardes sont prets.",
+        "status_initial": "Sauvegardez, puis contrôlez.",
+        "status_ready": "Les périphériques sauvegardés sont prêts.",
+        "status_labels": {
+            GlobalStatus.CHECK_NOT_DONE: "Contrôle non effectué",
+            GlobalStatus.COCKPIT_READY: "Cockpit prêt",
+            GlobalStatus.WARNING: "Avertissement",
+            GlobalStatus.RESTORE_NEEDED: "Restauration requise",
+            GlobalStatus.CRITICAL_DEVICE_MISSING: "Périphérique critique absent",
+        },
+        "severity_labels": {
+            Severity.OK: "OK",
+            Severity.INFO: "Info",
+            Severity.WARNING: "Avertissement",
+            Severity.RESTORE_NEEDED: "À restaurer",
+            Severity.CRITICAL: "Critique",
+        },
+        "software_states": {
+            SoftwareState.RUNNING: "En cours",
+            SoftwareState.INSTALLED_CLOSED: "Installé, fermé",
+            SoftwareState.NOT_DETECTED: "Non détecté",
+            SoftwareState.REQUIRED_MISSING: "Requis absent",
+            SoftwareState.OPTIONAL_MISSING: "Optionnel absent",
+        },
+        "device_kinds": {
+            DeviceKind.WHEEL: "Volant",
+            DeviceKind.PEDALS: "Pédales",
+            DeviceKind.SHIFTER: "Boîte",
+            DeviceKind.HANDBRAKE: "Frein à main",
+            DeviceKind.BUTTON_BOX: "Button Box",
+            DeviceKind.DDU: "DDU",
+            DeviceKind.ARDUINO_SIMHUB: "Arduino SimHub",
+            DeviceKind.WIND_SIMULATOR: "Ventilation",
+            DeviceKind.OTHER: "Autre",
+        },
+        "unknown": "Inconnu",
         "com_ports": "COM Ports",
         "save": "Sauver",
-        "check": "Controle",
+        "check": "Contrôle",
         "restore": "Restaurer",
         "rollback": "Retour",
         "export": "Exporter",
         "import": "Importer",
-        "device_headers": ["Peripherique", "Role", "Statut", "USB"],
+        "device_headers": ["Périphérique", "Rôle", "Statut", "USB"],
         "joystick_order": "Ordre Joystick",
         "usb_software": "USB et logiciels",
         "area": "Zone",
         "status": "Statut",
-        "tabs": ["Dashboard", "USB Health", "Logs", "Settings", "Avance"],
+        "tabs": ["Tableau", "Santé USB", "Journaux", "Réglages", "Avancé"],
     },
 }
 
@@ -184,12 +251,33 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.setObjectName("MainTabs")
         root_layout.addWidget(self.tabs)
+        self.footer = QFrame()
+        self.footer.setObjectName("AppFooter")
+        footer_layout = QHBoxLayout(self.footer)
+        footer_layout.setContentsMargins(12, 3, 12, 5)
+        footer_layout.setSpacing(6)
+        footer_layout.addStretch(1)
+        self.footer_youtube_icon = QLabel()
+        self.footer_youtube_icon.setObjectName("FooterYoutubeIcon")
+        youtube = asset_pixmap("youtube_icon.png")
+        if not youtube.isNull():
+            self.footer_youtube_icon.setPixmap(
+                youtube.scaled(
+                    18,
+                    12,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+        footer_layout.addWidget(self.footer_youtube_icon)
         self.footer_label = QLabel()
-        self.footer_label.setObjectName("AppFooter")
+        self.footer_label.setObjectName("FooterText")
         self.footer_label.setTextFormat(Qt.TextFormat.RichText)
         self.footer_label.setOpenExternalLinks(True)
         self.footer_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
-        root_layout.addWidget(self.footer_label)
+        footer_layout.addWidget(self.footer_label)
+        footer_layout.addStretch(1)
+        root_layout.addWidget(self.footer)
         self.setCentralWidget(self.background)
         self._build_dashboard()
         self._build_usb_health_tab()
@@ -281,7 +369,7 @@ class MainWindow(QMainWindow):
         logo_block.setObjectName("LogoBlock")
         logo_layout = QVBoxLayout(logo_block)
         logo_layout.setContentsMargins(0, 0, 0, 0)
-        logo_layout.setSpacing(2)
+        logo_layout.setSpacing(0)
         self.dashboard_logo = QLabel()
         self.dashboard_logo.setObjectName("DashboardLogo")
         self.dashboard_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -289,18 +377,21 @@ class MainWindow(QMainWindow):
         if not logo.isNull():
             self.dashboard_logo.setPixmap(
                 logo.scaled(
-                    268,
-                    80,
+                    134,
+                    40,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        self.dashboard_logo.setMaximumHeight(82)
+        self.dashboard_logo.setFixedHeight(42)
         self.logo_credit_label = QLabel()
         self.logo_credit_label.setObjectName("LogoCredit")
         self.logo_credit_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo_layout.addWidget(self.dashboard_logo)
-        logo_layout.addWidget(self.logo_credit_label)
+        self.logo_credit_label.setFixedHeight(12)
+        logo_layout.addStretch(1)
+        logo_layout.addWidget(self.dashboard_logo, 0, Qt.AlignmentFlag.AlignCenter)
+        logo_layout.addWidget(self.logo_credit_label, 0, Qt.AlignmentFlag.AlignCenter)
+        logo_layout.addStretch(1)
         header_layout.addWidget(logo_block, 3)
 
         right_panel = QWidget()
@@ -378,6 +469,7 @@ class MainWindow(QMainWindow):
         self.device_table.setAlternatingRowColors(True)
         self.device_table.setShowGrid(True)
         self.device_table.setGridStyle(Qt.PenStyle.SolidLine)
+        self.device_table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.com_ports_panel = self._panel("COM Ports", self.device_table)
         self.com_ports_panel_title = self.com_ports_panel.title_label
         layout.addWidget(self.com_ports_panel, 2)
@@ -392,6 +484,7 @@ class MainWindow(QMainWindow):
         self.joystick_table.verticalHeader().setVisible(False)
         self.joystick_table.setShowGrid(True)
         self.joystick_table.setGridStyle(Qt.PenStyle.SolidLine)
+        self.joystick_table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.joystick_panel = self._panel("Joystick Order", self.joystick_table)
         self.joystick_panel_title = self.joystick_panel.title_label
         bottom.addWidget(self.joystick_panel, 2)
@@ -401,6 +494,7 @@ class MainWindow(QMainWindow):
         self.summary_tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
         self.summary_tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
         self.summary_tree.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.summary_tree.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.summary_panel = self._panel("USB Health and Software", self.summary_tree)
         self.summary_panel_title = self.summary_panel.title_label
         bottom.addWidget(self.summary_panel, 3)
@@ -648,7 +742,7 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "Cockpit Guardian", message)
 
     def update_report(self, report: CheckReport) -> None:
-        self.status_title.setText(report.global_status.value.upper())
+        self.status_title.setText(self._status_text(report.global_status).upper())
         self.status_subtitle.setText(report.issues[0] if report.issues else self._dashboard_text("status_ready"))
         self._apply_status_style(report.global_status)
         self.tray.update_report(report)
@@ -671,7 +765,23 @@ class MainWindow(QMainWindow):
         language = self.settings.language if self.settings.language in DASHBOARD_TEXT else "en"
         return DASHBOARD_TEXT[language][key]
 
+    def _status_text(self, status: GlobalStatus) -> str:
+        return self._dashboard_text("status_labels").get(status, status.value)
+
+    def _severity_text(self, severity: Severity) -> str:
+        return self._dashboard_text("severity_labels").get(severity, severity.value)
+
+    def _software_state_text(self, state: SoftwareState) -> str:
+        return self._dashboard_text("software_states").get(state, state.value)
+
+    def _device_kind_text(self, kind: DeviceKind | None) -> str:
+        if not kind:
+            return self._dashboard_text("unknown")
+        return self._dashboard_text("device_kinds").get(kind, kind.value)
+
     def _refresh_dashboard_texts(self) -> None:
+        status = self.controller.last_report.global_status if self.controller.last_report else GlobalStatus.CHECK_NOT_DONE
+        self.status_title.setText(self._status_text(status).upper())
         self.status_subtitle.setText(self._dashboard_text("status_initial"))
         self.save_button.setText(self._dashboard_text("save"))
         self.check_button.setText(self._dashboard_text("check"))
@@ -695,7 +805,7 @@ class MainWindow(QMainWindow):
             self.status_subtitle.setText(report.issues[0] if report.issues else self._dashboard_text("status_ready"))
         self.footer_label.setText(
             f'{self._dashboard_text("footer")} | Version {__version__} | '
-            f'<a href="{YOUTUBE_URL}">youtube.com/@realisticsimcockpit</a>'
+            f'<a style="color: #ffffff; text-decoration: none;" href="{YOUTUBE_URL}">youtube.com/@realisticsimcockpit</a>'
         )
 
     def _set_language(self, language: str) -> None:
@@ -719,13 +829,13 @@ class MainWindow(QMainWindow):
             row = self.device_table.rowCount()
             self.device_table.insertRow(row)
             device = check.expected or check.detected
-            role = device.kind.value.replace("_", " ").title() if device else "Unknown"
+            role = self._device_kind_text(device.kind if device else None)
             usb = self._usb_summary(device)
             detail = check.detail or ""
             if check.ffb_clipping_percent is not None:
                 detail = f"FFB clipping {check.ffb_clipping_percent:.0f}% - Reduce in-game FFB gain"
             tooltip = detail or check.message
-            values = [check.label, role, check.severity.value.replace("_", " ").title(), usb]
+            values = [check.label, role, self._severity_text(check.severity), usb]
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 item.setToolTip(tooltip)
@@ -733,10 +843,9 @@ class MainWindow(QMainWindow):
                     item.setForeground(QColor(SEVERITY_COLORS.get(check.severity, "#e5e7eb")))
                 self.device_table.setItem(row, column, item)
 
-    @staticmethod
-    def _usb_summary(device) -> str:
+    def _usb_summary(self, device) -> str:
         if not device or not device.usb:
-            return "Unknown"
+            return self._dashboard_text("unknown")
         if device.usb.negotiated_speed_mbps:
             return f"{device.usb.label} ({device.usb.negotiated_speed_mbps} Mbps)"
         if device.usb.confidence and device.usb.confidence != "unknown":
@@ -758,10 +867,10 @@ class MainWindow(QMainWindow):
 
     def _update_summary(self, report: CheckReport) -> None:
         self.summary_tree.clear()
-        self.summary_tree.addTopLevelItem(QTreeWidgetItem(["USB Health", report.usb_health.message]))
-        self.summary_tree.addTopLevelItem(QTreeWidgetItem(["Joystick Order", report.joystick_order.message]))
+        self.summary_tree.addTopLevelItem(QTreeWidgetItem([self._dashboard_text("usb_software"), report.usb_health.message]))
+        self.summary_tree.addTopLevelItem(QTreeWidgetItem([self._dashboard_text("joystick_order"), report.joystick_order.message]))
         for software in report.software:
-            self.summary_tree.addTopLevelItem(QTreeWidgetItem([software.name, software.state.value]))
+            self.summary_tree.addTopLevelItem(QTreeWidgetItem([software.name, self._software_state_text(software.state)]))
         self.summary_tree.expandAll()
 
     def _update_usb(self, report: CheckReport) -> None:

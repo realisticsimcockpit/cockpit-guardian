@@ -24,6 +24,7 @@ desktop distribution.
 - `src/cockpit_guardian/assets/tray_restore.png`: restore needed.
 - `src/cockpit_guardian/assets/tray_critical.png`: critical device missing.
 - `src/cockpit_guardian/assets/ui_logo_cg.png`: centered dashboard UI logo.
+- `src/cockpit_guardian/assets/youtube_icon.png`: footer YouTube link icon.
 - `src/cockpit_guardian/assets/asset_preview.png`: generated preview sheet.
 
 ## Usage
@@ -36,13 +37,15 @@ desktop distribution.
   size.
 - The dashboard header exposes `lang_eng.png` and `lang_fr.png` for one-click
   language switching.
+- The footer uses `youtube_icon.png` next to the channel link.
 - The system tray uses the status-specific tray PNG files.
 - The Windows build script passes `app_icon.ico` to Nuitka for executable metadata.
 - The Inno Setup installer uses `app_icon.ico` as the setup icon.
 
 ## Regeneration
 
-Regenerate the generated icon, tray, language, lockup, and preview assets with:
+Regenerate the generated icon, tray, language, YouTube, lockup, and preview
+assets with:
 
 ```bash
 QT_QPA_PLATFORM=offscreen python tools/generate_assets.py

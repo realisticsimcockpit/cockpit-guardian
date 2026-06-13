@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QRectF, Qt
+from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QGuiApplication, QImage, QPainter, QPen
 from PySide6.QtSvg import QSvgRenderer
 
@@ -125,6 +125,26 @@ def render_language_flag(language: str, png_path: Path) -> None:
         raise RuntimeError(f"Could not write {png_path}")
 
 
+def render_youtube_icon(png_path: Path) -> None:
+    image = QImage(64, 44, QImage.Format.Format_ARGB32)
+    image.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(image)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(QColor("#ff0000"))
+    painter.drawRoundedRect(QRectF(4, 5, 56, 34), 8, 8)
+    painter.setBrush(QColor("#ffffff"))
+    points = [
+        QPointF(27, 14),
+        QPointF(27, 30),
+        QPointF(42, 22),
+    ]
+    painter.drawPolygon(points)
+    painter.end()
+    if not image.save(str(png_path)):
+        raise RuntimeError(f"Could not write {png_path}")
+
+
 def render_ico(svg_path: Path, ico_path: Path) -> None:
     renderer = QSvgRenderer(str(svg_path))
     image = QImage(256, 256, QImage.Format.Format_ARGB32)
@@ -200,6 +220,7 @@ def main() -> int:
 
     render_language_flag("eng", ASSET_DIR / "lang_eng.png")
     render_language_flag("fr", ASSET_DIR / "lang_fr.png")
+    render_youtube_icon(ASSET_DIR / "youtube_icon.png")
     render_preview()
     print(f"Generated assets in {ASSET_DIR}")
     app.quit()
