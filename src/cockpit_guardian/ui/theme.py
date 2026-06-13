@@ -28,6 +28,10 @@ def app_stylesheet(theme: str = "dark") -> str:
         QLabel { background: transparent; }
         QWidget#AppBackground { background: #000000; }
         QFrame#DashboardHeader { background: transparent; border: 0; }
+        QFrame#DataPanel { background: rgba(0, 0, 0, 124); border: 1px solid rgba(148, 163, 184, 150); border-radius: 5px; }
+        QLabel#PanelTitle { color: #f8fafc; font-size: 12px; font-weight: 700; }
+        QLabel#LogoCredit { color: #d1d5db; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+        QLabel#AppFooter { color: #cbd5e1; font-size: 10px; padding: 3px 12px 5px 12px; background: rgba(0, 0, 0, 135); border-top: 1px solid rgba(148, 163, 184, 95); }
         QPushButton { background: rgba(0, 0, 0, 190); color: #f8fafc; border: 1px solid rgba(255, 255, 255, 90); border-radius: 5px; padding: 6px 10px; }
         QPushButton:hover { background: rgba(25, 25, 25, 235); border-color: rgba(220, 38, 38, 210); }
         QPushButton#PrimaryButton { background: rgba(185, 28, 28, 215); color: white; border-color: #ef4444; }
@@ -46,6 +50,10 @@ def app_stylesheet(theme: str = "dark") -> str:
     QLabel { background: transparent; }
     QWidget#AppBackground { background: #000000; }
     QFrame#DashboardHeader { background: transparent; border: 0; }
+    QFrame#DataPanel { background: rgba(0, 0, 0, 124); border: 1px solid rgba(148, 163, 184, 150); border-radius: 5px; }
+    QLabel#PanelTitle { color: #f8fafc; font-size: 12px; font-weight: 700; }
+    QLabel#LogoCredit { color: #d1d5db; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+    QLabel#AppFooter { color: #cbd5e1; font-size: 10px; padding: 3px 12px 5px 12px; background: rgba(0, 0, 0, 135); border-top: 1px solid rgba(148, 163, 184, 95); }
     QPushButton { background: rgba(0, 0, 0, 190); border: 1px solid rgba(255, 255, 255, 90); border-radius: 5px; padding: 6px 10px; }
     QPushButton:hover { background: rgba(25, 25, 25, 235); border-color: rgba(220, 38, 38, 210); }
     QPushButton#PrimaryButton { background: rgba(185, 28, 28, 215); color: white; border-color: #ef4444; }

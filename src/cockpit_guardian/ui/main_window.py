@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .. import __version__
 from ..controller import AppController
 from ..models import CheckReport, GlobalStatus, Priority, RestoreReport, Settings, to_plain
 from .assets import asset_icon, asset_pixmap
@@ -41,11 +42,15 @@ from ..services.integration_notices import INTEGRATION_NOTICES
 
 WINDOW_WIDTH = 905
 WINDOW_HEIGHT = 679
+YOUTUBE_URL = "https://www.youtube.com/@realisticsimcockpit"
 
 DASHBOARD_TEXT = {
     "en": {
+        "logo_credit": "by REALISTIC SIMCOCKPIT",
+        "footer": "Author: REALISTIC SIMCOCKPIT",
         "status_initial": "Save config, then run a check.",
         "status_ready": "All saved cockpit devices look ready.",
+        "com_ports": "COM Ports",
         "save": "Save",
         "check": "Check",
         "restore": "Restore",
@@ -60,8 +65,11 @@ DASHBOARD_TEXT = {
         "tabs": ["Dashboard", "USB Health", "Logs", "Settings", "Advanced"],
     },
     "fr": {
+        "logo_credit": "par REALISTIC SIMCOCKPIT",
+        "footer": "Auteur : REALISTIC SIMCOCKPIT",
         "status_initial": "Sauvegardez, puis controlez.",
         "status_ready": "Les peripheriques sauvegardes sont prets.",
+        "com_ports": "COM Ports",
         "save": "Sauver",
         "check": "Controle",
         "restore": "Restaurer",
@@ -176,6 +184,12 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.setObjectName("MainTabs")
         root_layout.addWidget(self.tabs)
+        self.footer_label = QLabel()
+        self.footer_label.setObjectName("AppFooter")
+        self.footer_label.setTextFormat(Qt.TextFormat.RichText)
+        self.footer_label.setOpenExternalLinks(True)
+        self.footer_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        root_layout.addWidget(self.footer_label)
         self.setCentralWidget(self.background)
         self._build_dashboard()
         self._build_usb_health_tab()
@@ -263,6 +277,11 @@ class MainWindow(QMainWindow):
         status_layout.addStretch(1)
         header_layout.addWidget(status_block, 2)
 
+        logo_block = QWidget()
+        logo_block.setObjectName("LogoBlock")
+        logo_layout = QVBoxLayout(logo_block)
+        logo_layout.setContentsMargins(0, 0, 0, 0)
+        logo_layout.setSpacing(2)
         self.dashboard_logo = QLabel()
         self.dashboard_logo.setObjectName("DashboardLogo")
         self.dashboard_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -277,7 +296,12 @@ class MainWindow(QMainWindow):
                 )
             )
         self.dashboard_logo.setMaximumHeight(82)
-        header_layout.addWidget(self.dashboard_logo, 3)
+        self.logo_credit_label = QLabel()
+        self.logo_credit_label.setObjectName("LogoCredit")
+        self.logo_credit_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo_layout.addWidget(self.dashboard_logo)
+        logo_layout.addWidget(self.logo_credit_label)
+        header_layout.addWidget(logo_block, 3)
 
         right_panel = QWidget()
         right_panel.setObjectName("RightPanel")
@@ -354,7 +378,9 @@ class MainWindow(QMainWindow):
         self.device_table.setAlternatingRowColors(True)
         self.device_table.setShowGrid(True)
         self.device_table.setGridStyle(Qt.PenStyle.SolidLine)
-        layout.addWidget(self.device_table, 2)
+        self.com_ports_panel = self._panel("COM Ports", self.device_table)
+        self.com_ports_panel_title = self.com_ports_panel.title_label
+        layout.addWidget(self.com_ports_panel, 2)
 
         bottom = QHBoxLayout()
         bottom.setSpacing(14)
@@ -497,9 +523,13 @@ class MainWindow(QMainWindow):
         self.refresh_advanced()
 
     def _panel(self, title: str, child: QWidget) -> QWidget:
-        panel = QWidget()
+        panel = QFrame()
+        panel.setObjectName("DataPanel")
         layout = QVBoxLayout(panel)
+        layout.setContentsMargins(8, 6, 8, 8)
+        layout.setSpacing(6)
         label = QLabel(title)
+        label.setObjectName("PanelTitle")
         label.setStyleSheet("font-size: 12px; font-weight: 700;")
         layout.addWidget(label)
         layout.addWidget(child)
@@ -649,6 +679,8 @@ class MainWindow(QMainWindow):
         self.rollback_button.setText(self._dashboard_text("rollback"))
         self.export_config_button.setText(self._dashboard_text("export"))
         self.import_config_button.setText(self._dashboard_text("import"))
+        self.logo_credit_label.setText(self._dashboard_text("logo_credit"))
+        self.com_ports_panel_title.setText(self._dashboard_text("com_ports"))
         self.device_table.setHorizontalHeaderLabels(self._dashboard_text("device_headers"))
         self.joystick_table.setHorizontalHeaderLabels(["#", self._dashboard_text("joystick_order")])
         self.summary_tree.setHeaderLabels([self._dashboard_text("area"), self._dashboard_text("status")])
@@ -661,6 +693,10 @@ class MainWindow(QMainWindow):
         if self.controller.last_report:
             report = self.controller.last_report
             self.status_subtitle.setText(report.issues[0] if report.issues else self._dashboard_text("status_ready"))
+        self.footer_label.setText(
+            f'{self._dashboard_text("footer")} | Version {__version__} | '
+            f'<a href="{YOUTUBE_URL}">youtube.com/@realisticsimcockpit</a>'
+        )
 
     def _set_language(self, language: str) -> None:
         if language not in DASHBOARD_TEXT:
