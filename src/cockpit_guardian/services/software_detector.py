@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass, field
 
 from ..models import SoftwareState, SoftwareStatus
-from .windows_util import run_powershell_json
+from .windows_util import hidden_subprocess_kwargs, run_powershell_json
 
 
 SOFTWARE_CATALOG: dict[str, dict[str, object]] = {
@@ -58,7 +58,13 @@ class SoftwareDetector:
     def _running_processes(self) -> set[str]:
         if platform.system() == "Windows":
             try:
-                completed = subprocess.run(["tasklist", "/fo", "csv", "/nh"], capture_output=True, text=True, timeout=8)
+                completed = subprocess.run(
+                    ["tasklist", "/fo", "csv", "/nh"],
+                    capture_output=True,
+                    text=True,
+                    timeout=8,
+                    **hidden_subprocess_kwargs(),
+                )
             except Exception:
                 return set()
             names = set()

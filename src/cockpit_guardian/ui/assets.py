@@ -19,3 +19,8 @@ def asset_icon(name: str) -> QIcon:
     with asset_path(name) as path:
         pixmap = QPixmap(str(path))
     return QIcon(pixmap)
+
+
+def asset_pixmap(name: str) -> QPixmap:
+    with asset_path(name) as path:
+        return QPixmap(str(path))

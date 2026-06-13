@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..models import CockpitDevice
-from .windows_util import is_admin, is_windows
+from .windows_util import hidden_subprocess_kwargs, is_admin, is_windows
 
 
 @dataclass(slots=True)
@@ -54,7 +54,14 @@ class UsbRescanService:
             return False, "Administrator rights are required for USB rescan.", True
         import subprocess
 
-        completed = subprocess.run(["pnputil", "/scan-devices"], capture_output=True, text=True, timeout=30, check=False)
+        completed = subprocess.run(
+            ["pnputil", "/scan-devices"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+            **hidden_subprocess_kwargs(),
+        )
         if completed.returncode == 0:
             return True, "USB device rescan completed.", False
         return False, completed.stderr.strip() or completed.stdout.strip() or "USB rescan failed.", False

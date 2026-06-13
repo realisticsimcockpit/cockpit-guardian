@@ -36,6 +36,18 @@ def parse_vid_pid(text: str | None) -> tuple[str | None, str | None]:
     return match.group(1).upper(), match.group(2).upper()
 
 
+def hidden_subprocess_kwargs() -> dict[str, Any]:
+    if not is_windows():
+        return {}
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startupinfo.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+    return {
+        "creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        "startupinfo": startupinfo,
+    }
+
+
 def run_powershell_json(script: str, timeout: int = 12) -> list[dict[str, Any]]:
     if not is_windows():
         return []
@@ -48,7 +60,14 @@ def run_powershell_json(script: str, timeout: int = 12) -> list[dict[str, Any]]:
         f"{script} | ConvertTo-Json -Depth 5",
     ]
     try:
-        completed = subprocess.run(command, capture_output=True, text=True, timeout=timeout, check=False)
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+            **hidden_subprocess_kwargs(),
+        )
     except (OSError, subprocess.TimeoutExpired):
         return []
     if completed.returncode != 0 or not completed.stdout.strip():

@@ -36,6 +36,9 @@ powershell -ExecutionPolicy Bypass -File .\packaging\windows\build_installer.ps1
 
 - Build mode is `standalone`, not `onefile`, to avoid startup extraction.
 - The Windows console is disabled for lower visual noise and cleaner startup.
+- Runtime Windows helpers launch PowerShell, `tasklist`, and `pnputil` with
+  hidden subprocess flags so no transient command prompt flashes during scans or
+  USB restore actions.
 - Qt WebEngine and unrelated UI stacks are not imported by the app.
 - Installed software and USB event scans are cached by default.
 - HID detection has a short in-memory cache to avoid duplicate PowerShell scans

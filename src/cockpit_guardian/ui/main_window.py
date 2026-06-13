@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal, Slot
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -32,10 +32,36 @@ from PySide6.QtWidgets import (
 
 from ..controller import AppController
 from ..models import CheckReport, GlobalStatus, Priority, RestoreReport, Settings, to_plain
-from .assets import asset_icon
+from .assets import asset_icon, asset_pixmap
 from .theme import SEVERITY_COLORS, STATUS_COLORS, app_stylesheet
 from .tray import GuardianTray
 from ..services.integration_notices import INTEGRATION_NOTICES
+
+
+class BackgroundWidget(QWidget):
+    def __init__(self, asset_name: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._source = asset_pixmap(asset_name)
+        self._scaled = QPixmap()
+        self._scaled_size = self.size()
+        self.setObjectName("AppBackground")
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt override
+        painter = QPainter(self)
+        if self._source.isNull():
+            painter.fillRect(self.rect(), QColor("#05070b"))
+            return
+        if self._scaled.isNull() or self._scaled_size != self.size():
+            self._scaled = self._source.scaled(
+                self.size(),
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            self._scaled_size = self.size()
+        x = (self.width() - self._scaled.width()) // 2
+        y = (self.height() - self._scaled.height()) // 2
+        painter.drawPixmap(x, y, self._scaled)
+        event.accept()
 
 
 class Worker(QObject):
@@ -66,8 +92,13 @@ class MainWindow(QMainWindow):
         self._workers: dict[QThread, Worker] = {}
         self._busy_operations = 0
 
+        self.background = BackgroundWidget("app_background.png")
+        root_layout = QVBoxLayout(self.background)
+        root_layout.setContentsMargins(0, 0, 0, 0)
         self.tabs = QTabWidget()
-        self.setCentralWidget(self.tabs)
+        self.tabs.setObjectName("MainTabs")
+        root_layout.addWidget(self.tabs)
+        self.setCentralWidget(self.background)
         self._build_dashboard()
         self._build_usb_health_tab()
         self._build_logs_tab()
@@ -95,11 +126,32 @@ class MainWindow(QMainWindow):
 
         self.status_banner = QFrame()
         self.status_banner.setObjectName("StatusBanner")
+        self.status_banner.setStyleSheet(
+            f"QFrame#StatusBanner {{ background: {STATUS_COLORS[GlobalStatus.CHECK_NOT_DONE]}; }}"
+        )
         banner_layout = QVBoxLayout(self.status_banner)
+        banner_layout.setContentsMargins(16, 12, 16, 14)
+        self.dashboard_logo = QLabel()
+        self.dashboard_logo.setObjectName("DashboardLogo")
+        self.dashboard_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo = asset_pixmap("ui_logo_cg.png")
+        if not logo.isNull():
+            self.dashboard_logo.setPixmap(
+                logo.scaled(
+                    320,
+                    96,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+        self.dashboard_logo.setMaximumHeight(100)
+        banner_layout.addWidget(self.dashboard_logo)
         self.status_title = QLabel("CHECK NOT DONE")
         self.status_title.setStyleSheet("font-size: 30px; font-weight: 800; background: transparent;")
+        self.status_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_subtitle = QLabel("Save your cockpit configuration, then run a check.")
         self.status_subtitle.setStyleSheet("background: transparent;")
+        self.status_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         banner_layout.addWidget(self.status_title)
         banner_layout.addWidget(self.status_subtitle)
         layout.addWidget(self.status_banner)
