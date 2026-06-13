@@ -16,6 +16,7 @@ from .services.restore_engine import RestoreEngine
 from .services.simhub import SimHubIntegration
 from .services.software_detector import SoftwareDetector
 from .services.usb_health import UsbHealthMonitor
+from .ui.assets import asset_icon
 from .ui.main_window import MainWindow
 
 
@@ -56,6 +57,7 @@ def build_controller() -> AppController:
 def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("Cockpit Guardian")
+    app.setWindowIcon(asset_icon("app_icon_256.png"))
     app.setQuitOnLastWindowClosed(False)
     window = MainWindow(build_controller())
     window.show()

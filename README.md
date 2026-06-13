@@ -145,6 +145,7 @@ with real SimHub, Arduino, ESP, or Windows hardware. In short:
 Main docs:
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [Visual assets](docs/ASSETS.md)
 - [Configuration backup](docs/CONFIG_BACKUP.md)
 - [Integration notices](docs/INTEGRATION_NOTICES.md)
 - [Windows installer](docs/WINDOWS_INSTALLER.md)

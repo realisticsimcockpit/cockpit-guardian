@@ -34,6 +34,7 @@ WizardStyle=modern
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 UninstallDisplayIcon={app}\{#MyAppExeName}
+SetupIconFile={#SourceDir}\app_icon.ico
 LicenseFile={#SourceDir}\LICENSE
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppName}

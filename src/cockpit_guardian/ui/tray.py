@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, Signal
-from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
+from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
 from ..models import CheckReport, GlobalStatus
-from .theme import STATUS_COLORS
+from .assets import asset_icon
 
 
 class GuardianTray(QObject):
@@ -57,12 +57,12 @@ class GuardianTray(QObject):
 
     @staticmethod
     def _icon(status: GlobalStatus) -> QIcon:
-        pixmap = QPixmap(64, 64)
-        pixmap.fill(QColor("transparent"))
-        painter = QPainter(pixmap)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setBrush(QColor(STATUS_COLORS.get(status, "#6b7280")))
-        painter.setPen(QColor("transparent"))
-        painter.drawEllipse(8, 8, 48, 48)
-        painter.end()
-        return QIcon(pixmap)
+        if status == GlobalStatus.COCKPIT_READY:
+            return asset_icon("tray_ready.png")
+        if status == GlobalStatus.WARNING:
+            return asset_icon("tray_warning.png")
+        if status == GlobalStatus.RESTORE_NEEDED:
+            return asset_icon("tray_restore.png")
+        if status == GlobalStatus.CRITICAL_DEVICE_MISSING:
+            return asset_icon("tray_critical.png")
+        return asset_icon("tray_idle.png")

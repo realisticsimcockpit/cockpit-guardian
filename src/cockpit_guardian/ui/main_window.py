@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 
 from ..controller import AppController
 from ..models import CheckReport, GlobalStatus, Priority, RestoreReport, Settings, to_plain
+from .assets import asset_icon
 from .theme import SEVERITY_COLORS, STATUS_COLORS, app_stylesheet
 from .tray import GuardianTray
 from ..services.integration_notices import INTEGRATION_NOTICES
@@ -59,6 +60,7 @@ class MainWindow(QMainWindow):
         self.controller = controller
         self.settings = self.controller.load_settings()
         self.setWindowTitle("Cockpit Guardian")
+        self.setWindowIcon(asset_icon("app_icon_256.png"))
         self.resize(1180, 760)
         self._threads: list[QThread] = []
         self._workers: dict[QThread, Worker] = {}

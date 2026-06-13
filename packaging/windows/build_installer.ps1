@@ -60,6 +60,8 @@ $nuitkaArgs = @(
     "--remove-output",
     "--output-dir=$NuitkaRoot",
     "--output-filename=CockpitGuardian.exe",
+    "--windows-icon-from-ico=src\cockpit_guardian\assets\app_icon.ico",
+    "--include-data-dir=src\cockpit_guardian\assets=cockpit_guardian\assets",
     "--windows-company-name=$Publisher",
     "--windows-product-name=$ProductName",
     "--windows-file-description=$ProductName",
@@ -82,6 +84,7 @@ Copy-Item "README.md" $StageDir -Force
 Copy-Item "LICENSE" $StageDir -Force
 Copy-Item "CHANGELOG.md" $StageDir -Force
 Copy-Item "docs" (Join-Path $StageDir "docs") -Recurse -Force
+Copy-Item "src\cockpit_guardian\assets\app_icon.ico" $StageDir -Force
 
 if ($SkipInstaller) {
     Write-Host "Standalone application staged in: $StageDir"

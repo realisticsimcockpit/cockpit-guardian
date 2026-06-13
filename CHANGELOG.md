@@ -19,3 +19,4 @@ All notable changes to Cockpit Guardian are documented here.
 - Dashboard export/import of portable configuration backups for Windows reinstall recovery.
 - Best-effort USB generation display per Dashboard device.
 - Initial Deep Windows scan on first startup and first baseline save.
+- Windows app, taskbar, installer, and systray visual assets.
