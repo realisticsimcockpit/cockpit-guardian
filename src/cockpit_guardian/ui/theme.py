@@ -31,8 +31,8 @@ def app_stylesheet(theme: str = "dark") -> str:
         QFrame#DataPanel { background: rgba(0, 0, 0, 124); border: 1px solid rgba(148, 163, 184, 150); border-radius: 5px; }
         QLabel#PanelTitle { color: #f8fafc; font-size: 12px; font-weight: 700; }
         QWidget#SummaryContent { background: transparent; border: 0; }
-        QLabel#ChecklistName { color: #f8fafc; font-size: 13px; }
-        QLabel#ChecklistIcon { font-size: 18px; font-weight: 800; }
+        QLabel#ChecklistName { color: #f8fafc; font-size: 10px; }
+        QLabel#ChecklistIcon { font-size: 12px; font-weight: 800; }
         QLabel#LogoCredit { color: #d1d5db; font-size: 9px; font-weight: 700; letter-spacing: 1px; }
         QFrame#AppFooter { background: rgba(0, 0, 0, 150); border-top: 1px solid rgba(148, 163, 184, 110); }
         QLabel#FooterText { color: #ffffff; font-size: 10px; }
@@ -64,8 +64,8 @@ def app_stylesheet(theme: str = "dark") -> str:
     QFrame#DataPanel { background: rgba(0, 0, 0, 124); border: 1px solid rgba(148, 163, 184, 150); border-radius: 5px; }
     QLabel#PanelTitle { color: #f8fafc; font-size: 12px; font-weight: 700; }
     QWidget#SummaryContent { background: transparent; border: 0; }
-    QLabel#ChecklistName { color: #f8fafc; font-size: 13px; }
-    QLabel#ChecklistIcon { font-size: 18px; font-weight: 800; }
+    QLabel#ChecklistName { color: #f8fafc; font-size: 10px; }
+    QLabel#ChecklistIcon { font-size: 12px; font-weight: 800; }
     QLabel#LogoCredit { color: #d1d5db; font-size: 9px; font-weight: 700; letter-spacing: 1px; }
     QFrame#AppFooter { background: rgba(0, 0, 0, 150); border-top: 1px solid rgba(148, 163, 184, 110); }
     QLabel#FooterText { color: #ffffff; font-size: 10px; }

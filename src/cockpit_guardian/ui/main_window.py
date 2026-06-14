@@ -44,6 +44,8 @@ from ..services.integration_notices import INTEGRATION_NOTICES
 WINDOW_WIDTH = 905
 WINDOW_HEIGHT = 679
 YOUTUBE_URL = "https://www.youtube.com/@realisticsimcockpit"
+CHECKLIST_ROWS_PER_COLUMN = 5
+CHECKLIST_COLUMNS = 3
 
 DASHBOARD_TEXT = {
     "en": {
@@ -382,12 +384,12 @@ class MainWindow(QMainWindow):
 
         self.summary_content = QWidget()
         self.summary_content.setObjectName("SummaryContent")
-        self.summary_content.setMinimumWidth(360)
-        self.summary_content.setMaximumWidth(440)
-        self.summary_checklist_layout = QVBoxLayout(self.summary_content)
+        self.summary_content.setMinimumWidth(420)
+        self.summary_content.setMaximumWidth(500)
+        self.summary_checklist_layout = QGridLayout(self.summary_content)
         self.summary_checklist_layout.setContentsMargins(0, 0, 0, 0)
-        self.summary_checklist_layout.setSpacing(2)
-        self.summary_checklist_layout.addStretch(1)
+        self.summary_checklist_layout.setHorizontalSpacing(18)
+        self.summary_checklist_layout.setVerticalSpacing(0)
         header_layout.addWidget(self.summary_content, 2, Qt.AlignmentFlag.AlignTop)
 
         right_panel = QWidget()
@@ -768,7 +770,6 @@ class MainWindow(QMainWindow):
             self._update_summary(report)
         else:
             self._clear_layout(self.summary_checklist_layout)
-            self.summary_checklist_layout.addStretch(1)
         self.footer_prefix_label.setText(self._dashboard_text("footer_prefix"))
         self.footer_label.setText(
             f'<a style="color: #ffffff; text-decoration: none;" href="{YOUTUBE_URL}">REALISTIC SIMCOCKPIT</a>'
@@ -877,42 +878,37 @@ class MainWindow(QMainWindow):
 
     def _update_summary(self, report: CheckReport) -> None:
         self._clear_layout(self.summary_checklist_layout)
-        self._add_checklist_row(
-            self.summary_checklist_layout,
-            self._dashboard_text("usb_health"),
-            report.usb_health.severity,
-        )
-        self._add_checklist_row(
-            self.summary_checklist_layout,
-            self._dashboard_text("joystick_order"),
-            Severity.OK if report.joystick_order.ok else Severity.WARNING,
-        )
+        items = [
+            (self._dashboard_text("usb_health"), report.usb_health.severity),
+            (self._dashboard_text("joystick_order"), Severity.OK if report.joystick_order.ok else Severity.WARNING),
+        ]
         for software in report.software:
-            self._add_checklist_row(
-                self.summary_checklist_layout,
-                software.name,
-                self._severity_from_software_state(software.state),
-            )
-        self.summary_checklist_layout.addStretch(1)
+            items.append((software.name, self._severity_from_software_state(software.state)))
+        for index, (label, severity) in enumerate(items):
+            self._add_checklist_row(self.summary_checklist_layout, index, label, severity)
 
-    def _add_checklist_row(self, layout: QVBoxLayout, label: str, severity: Severity) -> None:
+    def _add_checklist_row(self, layout: QGridLayout, index: int, label: str, severity: Severity) -> None:
         row = QWidget()
         row.setObjectName("ChecklistRow")
         row_layout = QHBoxLayout(row)
-        row_layout.setContentsMargins(0, 3, 0, 3)
-        row_layout.setSpacing(12)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(3)
         label_widget = QLabel(label)
         label_widget.setObjectName("ChecklistName")
+        label_widget.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         label_widget.setWordWrap(False)
         icon_widget = QLabel(self._status_icon(severity))
         icon_widget.setObjectName("ChecklistIcon")
-        icon_widget.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        icon_widget.setFixedWidth(28)
+        icon_widget.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        icon_widget.setFixedWidth(13)
         icon_widget.setStyleSheet(f"color: {SEVERITY_COLORS.get(severity, '#e5e7eb')};")
-        row_layout.addWidget(label_widget, 0)
-        row_layout.addStretch(1)
+        row_layout.addWidget(label_widget, 1)
         row_layout.addWidget(icon_widget)
-        layout.addWidget(row)
+        column = min(index // CHECKLIST_ROWS_PER_COLUMN, CHECKLIST_COLUMNS - 1)
+        grid_row = index % CHECKLIST_ROWS_PER_COLUMN
+        if index >= CHECKLIST_ROWS_PER_COLUMN * CHECKLIST_COLUMNS:
+            grid_row = CHECKLIST_ROWS_PER_COLUMN + index - (CHECKLIST_ROWS_PER_COLUMN * CHECKLIST_COLUMNS)
+        layout.addWidget(row, grid_row, column)
 
     @staticmethod
     def _status_icon(severity: Severity) -> str:
