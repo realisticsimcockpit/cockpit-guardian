@@ -55,7 +55,7 @@ def app_stylesheet(theme: str = "dark") -> str:
         QTableWidget { alternate-background-color: rgba(18, 18, 18, 220); }
         QTableWidget::item { padding-left: 3px; }
         QTableWidget::item:selected, QTreeWidget::item:selected { background: rgba(185, 28, 28, 150); color: #ffffff; }
-        QHeaderView::section { background: rgba(0, 0, 0, 235); color: #f8fafc; padding: 4px 4px 4px 5px; border: 0; border-right: 1px solid rgba(255, 255, 255, 185); text-align: left; }
+        QHeaderView::section { background: rgba(0, 0, 0, 235); color: #f8fafc; font-weight: 800; padding: 4px 4px 4px 5px; border: 0; border-right: 1px solid rgba(255, 255, 255, 185); text-align: left; }
         QScrollBar:vertical { background: rgba(0, 0, 0, 120); width: 8px; margin: 0; }
         QScrollBar::handle:vertical { background: rgba(148, 163, 184, 150); min-height: 22px; border-radius: 4px; }
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
@@ -94,7 +94,7 @@ def app_stylesheet(theme: str = "dark") -> str:
     QTableWidget { alternate-background-color: rgba(18, 18, 18, 220); }
     QTableWidget::item { padding-left: 3px; }
     QTableWidget::item:selected, QTreeWidget::item:selected { background: rgba(185, 28, 28, 150); color: #ffffff; }
-    QHeaderView::section { background: rgba(0, 0, 0, 235); padding: 4px 4px 4px 5px; border: 0; border-right: 1px solid rgba(255, 255, 255, 185); text-align: left; }
+    QHeaderView::section { background: rgba(0, 0, 0, 235); font-weight: 800; padding: 4px 4px 4px 5px; border: 0; border-right: 1px solid rgba(255, 255, 255, 185); text-align: left; }
     QScrollBar:vertical { background: rgba(0, 0, 0, 120); width: 8px; margin: 0; }
     QScrollBar::handle:vertical { background: rgba(148, 163, 184, 150); min-height: 22px; border-radius: 4px; }
     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }

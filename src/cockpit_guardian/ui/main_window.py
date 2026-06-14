@@ -362,6 +362,9 @@ class MainWindow(QMainWindow):
     def _set_table_headers(table: QTableWidget, labels: list[str]) -> None:
         for column, label in enumerate(labels):
             item = QTableWidgetItem(label)
+            font = item.font()
+            font.setBold(True)
+            item.setFont(font)
             item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             table.setHorizontalHeaderItem(column, item)
 
@@ -388,7 +391,7 @@ class MainWindow(QMainWindow):
         logo_block.setObjectName("LogoBlock")
         logo_layout = QVBoxLayout(logo_block)
         logo_layout.setContentsMargins(0, 0, 0, 0)
-        logo_layout.setSpacing(2)
+        logo_layout.setSpacing(0)
         self.dashboard_logo = QLabel()
         self.dashboard_logo.setObjectName("DashboardLogo")
         self.dashboard_logo.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
