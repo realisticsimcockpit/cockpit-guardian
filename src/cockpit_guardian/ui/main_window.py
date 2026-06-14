@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QSize, Qt, QThread, QTimer, Signal, Slot
@@ -105,6 +106,10 @@ DASHBOARD_TEXT = {
         "joystick_order": "Joystick Order",
         "joystick_headers": ["#", "Joystick", "USB"],
         "usb_health": "USB",
+        "quick_log": "Quick log",
+        "no_quick_log": "No recent event",
+        "last_ffb_clipping": "Last FFB Clipping at {time}",
+        "last_usb_disconnect": "Last USB disconnect at {time}",
         "tabs": ["Dashboard", "USB Health", "Logs", "Settings", "Advanced"],
     },
     "fr": {
@@ -163,6 +168,10 @@ DASHBOARD_TEXT = {
         "joystick_order": "Ordre Joystick",
         "joystick_headers": ["#", "Joystick", "USB"],
         "usb_health": "USB",
+        "quick_log": "Quick log",
+        "no_quick_log": "Aucun événement récent",
+        "last_ffb_clipping": "Dernier FFB Clipping à {time}",
+        "last_usb_disconnect": "Dernière Déconnexion USB à {time}",
         "tabs": ["Tableau", "Santé USB", "Journaux", "Réglages", "Avancé"],
     },
 }
@@ -511,13 +520,36 @@ class MainWindow(QMainWindow):
         self.com_ports_panel_icon = self.com_ports_panel.title_icon
         tables.addWidget(self.com_ports_panel, 3)
 
+        bottom_row = QHBoxLayout()
+        bottom_row.setSpacing(14)
+
         self.joystick_table = SeparatorTableWidget(0, 3)
         self._set_table_headers(self.joystick_table, ["#", "Joystick Order", "USB"])
         self._configure_table(self.joystick_table)
         self.joystick_panel = self._panel("Joystick Order", self.joystick_table)
         self.joystick_panel_title = self.joystick_panel.title_label
         self.joystick_panel_icon = self.joystick_panel.title_icon
-        tables.addWidget(self.joystick_panel, 2)
+        bottom_row.addWidget(self.joystick_panel, 3)
+
+        self.quick_log_content = QWidget()
+        self.quick_log_content.setObjectName("QuickLogContent")
+        quick_log_layout = QVBoxLayout(self.quick_log_content)
+        quick_log_layout.setContentsMargins(2, 2, 2, 2)
+        quick_log_layout.setSpacing(5)
+        self.quick_log_labels = []
+        for _ in range(2):
+            label = QLabel()
+            label.setObjectName("QuickLogLine")
+            label.setWordWrap(False)
+            label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            quick_log_layout.addWidget(label)
+            self.quick_log_labels.append(label)
+        quick_log_layout.addStretch(1)
+        self.quick_log_panel = self._panel("Quick log", self.quick_log_content)
+        self.quick_log_panel_title = self.quick_log_panel.title_label
+        bottom_row.addWidget(self.quick_log_panel, 1)
+
+        tables.addLayout(bottom_row, 2)
         layout.addLayout(tables, 1)
 
         self.tabs.addTab(page, "Dashboard")
@@ -774,6 +806,7 @@ class MainWindow(QMainWindow):
         self._update_device_table(report)
         self._update_joystick(report)
         self._update_summary(report)
+        self._update_quick_log(report)
         self._update_usb(report)
         self._load_priority_table()
         self.refresh_logs()
@@ -820,6 +853,7 @@ class MainWindow(QMainWindow):
         self._set_table_headers(self.device_table, self._dashboard_text("device_headers"))
         self._set_table_headers(self.joystick_table, self._dashboard_text("joystick_headers"))
         self.joystick_panel_title.setText(self._dashboard_text("joystick_order"))
+        self.quick_log_panel_title.setText(self._dashboard_text("quick_log"))
         tabs = self._dashboard_text("tabs")
         for index, label in enumerate(tabs):
             if index < self.tabs.count():
@@ -828,11 +862,13 @@ class MainWindow(QMainWindow):
             report = self.controller.last_report
             self._update_status_icons(report)
             self._update_summary(report)
+            self._update_quick_log(report)
         else:
             self._clear_layout(self.summary_checklist_layout)
             self._set_icon_label(self.usb_status_icon, Severity.INFO)
             self._set_icon_label(self.com_ports_panel_icon, Severity.INFO)
             self._set_icon_label(self.joystick_panel_icon, Severity.INFO)
+            self._set_quick_log_lines([self._dashboard_text("no_quick_log")])
         self.footer_prefix_label.setText(self._dashboard_text("footer_prefix"))
         self.footer_label.setText(
             f'<a style="color: #ffffff; text-decoration: none;" href="{YOUTUBE_URL}">REALISTIC SIMCOCKPIT</a>'
@@ -902,10 +938,19 @@ class MainWindow(QMainWindow):
         if not device or not device.usb:
             return self._dashboard_text("unknown")
         if device.usb.negotiated_speed_mbps:
-            return f"{device.usb.label} ({device.usb.negotiated_speed_mbps} Mbps)"
-        if device.usb.confidence and device.usb.confidence != "unknown":
-            return f"{device.usb.label} ({device.usb.confidence})"
+            return f"{device.usb.label} - {device.usb.negotiated_speed_mbps} Mbps"
+        if device.usb.source and device.usb.source not in {"not detected", "Windows PnP topology"}:
+            return f"{device.usb.label} - {device.usb.source}"
+        if device.usb.hub_or_port:
+            return f"{device.usb.label} - {self._short_usb_location(device.usb.hub_or_port)}"
         return device.usb.label
+
+    @staticmethod
+    def _short_usb_location(value: str) -> str:
+        compact = " ".join(value.replace("|", " ").split())
+        if len(compact) <= 34:
+            return compact
+        return "..." + compact[-31:]
 
     def _update_joystick(self, report: CheckReport) -> None:
         order = report.joystick_order.current or report.joystick_order.expected
@@ -958,6 +1003,36 @@ class MainWindow(QMainWindow):
         self._set_icon_label(self.usb_status_icon, report.usb_health.severity)
         self._set_icon_label(self.com_ports_panel_icon, self._serial_summary_severity(report))
         self._set_icon_label(self.joystick_panel_icon, Severity.OK if report.joystick_order.ok else Severity.WARNING)
+
+    def _update_quick_log(self, report: CheckReport) -> None:
+        lines = []
+        if any(check.ffb_clipping_percent is not None for check in report.device_checks):
+            lines.append(
+                self._dashboard_text("last_ffb_clipping").format(time=self._format_event_time(report.timestamp))
+            )
+        if report.usb_health.events:
+            latest_usb_event = report.usb_health.events[0]
+            lines.append(
+                self._dashboard_text("last_usb_disconnect").format(time=self._format_event_time(latest_usb_event.timestamp))
+            )
+        if not lines:
+            lines.append(self._dashboard_text("no_quick_log"))
+        self._set_quick_log_lines(lines[:2])
+
+    def _set_quick_log_lines(self, lines: list[str]) -> None:
+        for index, label in enumerate(self.quick_log_labels):
+            text = lines[index] if index < len(lines) else ""
+            label.setText(text)
+            label.setVisible(bool(text))
+
+    def _format_event_time(self, value: str) -> str:
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return "--H--" if self.settings.language == "fr" else "--:--"
+        if self.settings.language == "fr":
+            return parsed.strftime("%HH%M")
+        return parsed.strftime("%H:%M")
 
     def _add_checklist_row(self, layout: QGridLayout, index: int, label: str, severity: Severity) -> None:
         row = QWidget()

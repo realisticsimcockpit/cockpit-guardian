@@ -34,6 +34,8 @@ def app_stylesheet(theme: str = "dark") -> str:
         QWidget#SummaryContent { background: transparent; border: 0; }
         QLabel#ChecklistName { color: #f8fafc; font-size: 10px; }
         QLabel#ChecklistIcon { font-size: 12px; font-weight: 800; }
+        QWidget#QuickLogContent { background: transparent; border: 0; }
+        QLabel#QuickLogLine { color: #f8fafc; font-size: 10px; }
         QLabel#StatusMetricLabel { color: #f8fafc; font-size: 10px; }
         QLabel#StatusMetricIcon { font-size: 12px; font-weight: 800; }
         QLabel#LogoCredit { color: #d1d5db; font-size: 9px; font-weight: 700; letter-spacing: 1px; }
@@ -70,6 +72,8 @@ def app_stylesheet(theme: str = "dark") -> str:
     QWidget#SummaryContent { background: transparent; border: 0; }
     QLabel#ChecklistName { color: #f8fafc; font-size: 10px; }
     QLabel#ChecklistIcon { font-size: 12px; font-weight: 800; }
+    QWidget#QuickLogContent { background: transparent; border: 0; }
+    QLabel#QuickLogLine { color: #f8fafc; font-size: 10px; }
     QLabel#StatusMetricLabel { color: #f8fafc; font-size: 10px; }
     QLabel#StatusMetricIcon { font-size: 12px; font-weight: 800; }
     QLabel#LogoCredit { color: #d1d5db; font-size: 9px; font-weight: 700; letter-spacing: 1px; }
