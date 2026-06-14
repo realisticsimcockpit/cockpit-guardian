@@ -351,7 +351,9 @@ class MainWindow(QMainWindow):
         table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         table.verticalHeader().setVisible(False)
-        table.verticalHeader().setDefaultSectionSize(30)
+        table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+        table.verticalHeader().setDefaultSectionSize(24)
+        table.verticalHeader().setMinimumSectionSize(22)
         table.setWordWrap(False)
         table.setTextElideMode(Qt.TextElideMode.ElideRight)
         table.setShowGrid(True)
@@ -399,13 +401,13 @@ class MainWindow(QMainWindow):
         if not logo.isNull():
             self.dashboard_logo.setPixmap(
                 logo.scaled(
-                    155,
-                    46,
+                    186,
+                    55,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        self.dashboard_logo.setFixedHeight(47)
+        self.dashboard_logo.setFixedHeight(56)
         self.logo_credit_label = QLabel()
         self.logo_credit_label.setObjectName("LogoCredit")
         self.logo_credit_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
