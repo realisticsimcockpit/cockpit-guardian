@@ -387,13 +387,13 @@ class MainWindow(QMainWindow):
         if not logo.isNull():
             self.dashboard_logo.setPixmap(
                 logo.scaled(
-                    124,
-                    37,
+                    155,
+                    46,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        self.dashboard_logo.setFixedHeight(38)
+        self.dashboard_logo.setFixedHeight(47)
         self.logo_credit_label = QLabel()
         self.logo_credit_label.setObjectName("LogoCredit")
         self.logo_credit_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
