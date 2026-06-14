@@ -30,7 +30,7 @@ def app_stylesheet(theme: str = "dark") -> str:
         QFrame#DashboardHeader { background: transparent; border: 0; }
         QFrame#DataPanel { background: rgba(0, 0, 0, 124); border: 1px solid rgba(148, 163, 184, 150); border-radius: 5px; }
         QLabel#PanelTitle { color: #ef4444; font-size: 12px; font-weight: 700; }
-        QLabel#PanelTitleIcon { font-size: 13px; font-weight: 800; }
+        QLabel#PanelTitleIcon { font-size: 12px; font-weight: 800; }
         QWidget#SummaryContent { background: transparent; border: 0; }
         QLabel#ChecklistName { color: #f8fafc; font-size: 10px; }
         QLabel#ChecklistIcon { font-size: 12px; font-weight: 800; }
@@ -68,7 +68,7 @@ def app_stylesheet(theme: str = "dark") -> str:
     QFrame#DashboardHeader { background: transparent; border: 0; }
     QFrame#DataPanel { background: rgba(0, 0, 0, 124); border: 1px solid rgba(148, 163, 184, 150); border-radius: 5px; }
     QLabel#PanelTitle { color: #ef4444; font-size: 12px; font-weight: 700; }
-    QLabel#PanelTitleIcon { font-size: 13px; font-weight: 800; }
+    QLabel#PanelTitleIcon { font-size: 12px; font-weight: 800; }
     QWidget#SummaryContent { background: transparent; border: 0; }
     QLabel#ChecklistName { color: #f8fafc; font-size: 10px; }
     QLabel#ChecklistIcon { font-size: 12px; font-weight: 800; }

@@ -48,6 +48,7 @@ YOUTUBE_URL = "https://www.youtube.com/@realisticsimcockpit"
 CHECKLIST_ROWS_PER_COLUMN = 8
 CHECKLIST_COLUMNS = 3
 CHECKLIST_COLUMN_WIDTH = 134
+STATUS_ICON_SIZE = 13
 
 DASHBOARD_TEXT = {
     "en": {
@@ -110,6 +111,24 @@ DASHBOARD_TEXT = {
         "no_quick_log": "No recent event",
         "last_ffb_clipping": "Last FFB Clipping at {time}",
         "last_usb_disconnect": "Last USB disconnect at {time}",
+        "ffb_clipping_detail": "FFB clipping {percent:.0f}% - Reduce in-game FFB gain",
+        "usb_labels": {
+            "USB 3.x capable path": "USB 3.x capable path",
+            "USB 2.0 path": "USB 2.0 path",
+            "USB 1.x/full-speed path": "USB 1.x/full-speed path",
+            "USB serial bridge": "USB serial bridge",
+            "USB speed unknown": "USB speed unknown",
+        },
+        "usb_sources": {
+            "Arduino USB Serial": "Arduino USB Serial",
+            "Silicon Labs CP210x USB-to-UART bridge": "Silicon Labs CP210x",
+            "WCH CH340 USB serial bridge": "WCH CH340",
+            "WCH CH341 USB serial bridge": "WCH CH341",
+            "FTDI FT232 USB serial bridge": "FTDI FT232",
+            "FTDI USB serial bridge": "FTDI",
+            "Prolific PL2303 USB serial bridge": "Prolific PL2303",
+            "Espressif USB JTAG/serial bridge": "Espressif USB JTAG/serial",
+        },
         "tabs": ["Dashboard", "USB Health", "Logs", "Settings", "Advanced"],
     },
     "fr": {
@@ -157,21 +176,39 @@ DASHBOARD_TEXT = {
         "detected_com_status": "{com} détecté",
         "com_mismatch_status": "Attendu {expected}, détecté {detected}",
         "missing_device": "Absent",
-        "com_ports": "COM Ports",
-        "save": "Sauver",
-        "check": "Contrôle",
+        "com_ports": "Ports COM",
+        "save": "Enregistrer",
+        "check": "Vérifier",
         "restore": "Restaurer",
-        "rollback": "Retour",
+        "rollback": "Annuler",
         "export": "Exporter",
         "import": "Importer",
         "device_headers": ["Périphérique", "Rôle", "Statut", "USB"],
-        "joystick_order": "Ordre Joystick",
-        "joystick_headers": ["#", "Joystick", "USB"],
+        "joystick_order": "Ordre contrôleurs",
+        "joystick_headers": ["#", "Contrôleur", "USB"],
         "usb_health": "USB",
-        "quick_log": "Quick log",
+        "quick_log": "Journal rapide",
         "no_quick_log": "Aucun événement récent",
-        "last_ffb_clipping": "Dernier FFB Clipping à {time}",
-        "last_usb_disconnect": "Dernière Déconnexion USB à {time}",
+        "last_ffb_clipping": "Dernier écrêtage FFB à {time}",
+        "last_usb_disconnect": "Dernière déconnexion USB à {time}",
+        "ffb_clipping_detail": "Écrêtage FFB {percent:.0f}% - réduisez le gain FFB dans le jeu",
+        "usb_labels": {
+            "USB 3.x capable path": "Chemin compatible USB 3.x",
+            "USB 2.0 path": "Chemin USB 2.0",
+            "USB 1.x/full-speed path": "Chemin USB 1.x / pleine vitesse",
+            "USB serial bridge": "Pont série USB",
+            "USB speed unknown": "Vitesse USB inconnue",
+        },
+        "usb_sources": {
+            "Arduino USB Serial": "Arduino",
+            "Silicon Labs CP210x USB-to-UART bridge": "Silicon Labs CP210x",
+            "WCH CH340 USB serial bridge": "WCH CH340",
+            "WCH CH341 USB serial bridge": "WCH CH341",
+            "FTDI FT232 USB serial bridge": "FTDI FT232",
+            "FTDI USB serial bridge": "FTDI",
+            "Prolific PL2303 USB serial bridge": "Prolific PL2303",
+            "Espressif USB JTAG/serial bridge": "Espressif USB JTAG/série",
+        },
         "tabs": ["Tableau", "Santé USB", "Journaux", "Réglages", "Avancé"],
     },
 }
@@ -427,7 +464,8 @@ class MainWindow(QMainWindow):
         self.usb_status_label.setObjectName("StatusMetricLabel")
         self.usb_status_icon = QLabel()
         self.usb_status_icon.setObjectName("StatusMetricIcon")
-        self.usb_status_icon.setFixedWidth(14)
+        self.usb_status_icon.setFixedSize(STATUS_ICON_SIZE, STATUS_ICON_SIZE)
+        self.usb_status_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         usb_status_layout.addWidget(self.usb_status_label)
         usb_status_layout.addWidget(self.usb_status_icon)
         usb_status_layout.addStretch(1)
@@ -682,7 +720,8 @@ class MainWindow(QMainWindow):
         label.setObjectName("PanelTitle")
         icon = QLabel()
         icon.setObjectName("PanelTitleIcon")
-        icon.setFixedWidth(16)
+        icon.setFixedSize(STATUS_ICON_SIZE, STATUS_ICON_SIZE)
+        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_layout.addWidget(label)
         title_layout.addWidget(icon)
         title_layout.addStretch(1)
@@ -910,7 +949,7 @@ class MainWindow(QMainWindow):
             usb = self._usb_summary(usb_device)
             detail = check.detail or ""
             if check.ffb_clipping_percent is not None:
-                detail = f"FFB clipping {check.ffb_clipping_percent:.0f}% - Reduce in-game FFB gain"
+                detail = self._dashboard_text("ffb_clipping_detail").format(percent=check.ffb_clipping_percent)
             tooltip = detail or check.message
             values = [check.label, role, self._device_status_text(check), usb]
             for column, value in enumerate(values):
@@ -942,17 +981,26 @@ class MainWindow(QMainWindow):
     def _usb_summary(self, device) -> str:
         if not device or not device.usb:
             return self._dashboard_text("unknown")
+        label = self._usb_label_text(device.usb.label)
         if device.usb.negotiated_speed_mbps:
-            return f"{device.usb.label} - {device.usb.negotiated_speed_mbps} Mbps"
+            return f"{label} - {device.usb.negotiated_speed_mbps} Mbps"
         if device.usb.source and device.usb.source not in {"not detected", "Windows PnP topology"}:
-            return f"{device.usb.label} - {device.usb.source}"
+            return f"{label} - {self._usb_source_text(device.usb.source)}"
         if device.usb.hub_or_port:
-            return f"{device.usb.label} - {self._short_usb_location(device.usb.hub_or_port)}"
-        return device.usb.label
+            return f"{label} - {self._short_usb_location(device.usb.hub_or_port)}"
+        return label
 
-    @staticmethod
-    def _short_usb_location(value: str) -> str:
+    def _usb_label_text(self, value: str) -> str:
+        return self._dashboard_text("usb_labels").get(value, value)
+
+    def _usb_source_text(self, value: str) -> str:
+        return self._dashboard_text("usb_sources").get(value, value)
+
+    def _short_usb_location(self, value: str) -> str:
         compact = " ".join(value.replace("|", " ").split())
+        if self.settings.language == "fr":
+            compact = compact.replace("Root Hub Port", "Port hub racine")
+            compact = compact.replace("xHCI Port hub racine", "Port hub racine xHCI")
         if len(compact) <= 34:
             return compact
         return "..." + compact[-31:]
@@ -1052,8 +1100,8 @@ class MainWindow(QMainWindow):
         label_widget.setWordWrap(False)
         icon_widget = QLabel(self._status_icon(severity))
         icon_widget.setObjectName("ChecklistIcon")
-        icon_widget.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        icon_widget.setFixedWidth(13)
+        icon_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_widget.setFixedSize(STATUS_ICON_SIZE, STATUS_ICON_SIZE)
         icon_widget.setStyleSheet(f"color: {SEVERITY_COLORS.get(severity, '#e5e7eb')};")
         row_layout.addWidget(label_widget, 1)
         row_layout.addWidget(icon_widget)
