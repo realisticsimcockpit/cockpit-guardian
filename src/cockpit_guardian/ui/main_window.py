@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QSize, Qt, QThread, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, QPointF, QSize, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -240,6 +240,48 @@ class BackgroundWidget(QWidget):
         event.accept()
 
 
+class StatusIconLabel(QLabel):
+    def __init__(self, severity: Severity | None = None, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._severity = severity
+        self.setFixedSize(STATUS_ICON_SIZE, STATUS_ICON_SIZE)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setText("")
+
+    def set_severity(self, severity: Severity) -> None:
+        self._severity = severity
+        self.update()
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt override
+        if self._severity is None:
+            event.accept()
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        color = QColor(SEVERITY_COLORS.get(self._severity, "#e5e7eb"))
+        pen = QPen(color, 1.8)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        width = float(self.width())
+        height = float(self.height())
+
+        if self._severity == Severity.OK:
+            painter.drawLine(QPointF(width * 0.22, height * 0.56), QPointF(width * 0.43, height * 0.75))
+            painter.drawLine(QPointF(width * 0.43, height * 0.75), QPointF(width * 0.80, height * 0.26))
+        elif self._severity == Severity.CRITICAL:
+            painter.drawLine(QPointF(width * 0.20, height * 0.20), QPointF(width * 0.80, height * 0.80))
+            painter.drawLine(QPointF(width * 0.80, height * 0.20), QPointF(width * 0.20, height * 0.80))
+        else:
+            painter.drawLine(QPointF(width * 0.50, height * 0.18), QPointF(width * 0.80, height * 0.78))
+            painter.drawLine(QPointF(width * 0.80, height * 0.78), QPointF(width * 0.20, height * 0.78))
+            painter.drawLine(QPointF(width * 0.20, height * 0.78), QPointF(width * 0.50, height * 0.18))
+            painter.drawLine(QPointF(width * 0.50, height * 0.38), QPointF(width * 0.50, height * 0.57))
+            painter.setBrush(color)
+            painter.drawEllipse(QPointF(width * 0.50, height * 0.67), 0.9, 0.9)
+        event.accept()
+
+
 class SeparatorTableWidget(QTableWidget):
     def paintEvent(self, event) -> None:  # noqa: N802 - Qt override
         super().paintEvent(event)
@@ -462,10 +504,8 @@ class MainWindow(QMainWindow):
         usb_status_layout.setSpacing(3)
         self.usb_status_label = QLabel()
         self.usb_status_label.setObjectName("StatusMetricLabel")
-        self.usb_status_icon = QLabel()
+        self.usb_status_icon = StatusIconLabel()
         self.usb_status_icon.setObjectName("StatusMetricIcon")
-        self.usb_status_icon.setFixedSize(STATUS_ICON_SIZE, STATUS_ICON_SIZE)
-        self.usb_status_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         usb_status_layout.addWidget(self.usb_status_label)
         usb_status_layout.addWidget(self.usb_status_icon)
         usb_status_layout.addStretch(1)
@@ -588,7 +628,7 @@ class MainWindow(QMainWindow):
             quick_log_layout.addWidget(label)
             self.quick_log_labels.append(label)
         quick_log_layout.addStretch(1)
-        self.quick_log_panel = self._panel("Quick log", self.quick_log_content)
+        self.quick_log_panel = self._panel("Quick log", self.quick_log_content, show_icon=False)
         self.quick_log_panel_title = self.quick_log_panel.title_label
         bottom_row.addWidget(self.quick_log_panel, 1)
 
@@ -707,7 +747,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(page, "Advanced / Debug")
         self.refresh_advanced()
 
-    def _panel(self, title: str, child: QWidget) -> QWidget:
+    def _panel(self, title: str, child: QWidget, show_icon: bool = True) -> QWidget:
         panel = QFrame()
         panel.setObjectName("DataPanel")
         layout = QVBoxLayout(panel)
@@ -718,10 +758,9 @@ class MainWindow(QMainWindow):
         title_layout.setSpacing(4)
         label = QLabel(title)
         label.setObjectName("PanelTitle")
-        icon = QLabel()
+        icon = StatusIconLabel()
         icon.setObjectName("PanelTitleIcon")
-        icon.setFixedSize(STATUS_ICON_SIZE, STATUS_ICON_SIZE)
-        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon.setVisible(show_icon)
         title_layout.addWidget(label)
         title_layout.addWidget(icon)
         title_layout.addStretch(1)
@@ -1098,11 +1137,8 @@ class MainWindow(QMainWindow):
         label_widget.setObjectName("ChecklistName")
         label_widget.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         label_widget.setWordWrap(False)
-        icon_widget = QLabel(self._status_icon(severity))
+        icon_widget = StatusIconLabel(severity)
         icon_widget.setObjectName("ChecklistIcon")
-        icon_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_widget.setFixedSize(STATUS_ICON_SIZE, STATUS_ICON_SIZE)
-        icon_widget.setStyleSheet(f"color: {SEVERITY_COLORS.get(severity, '#e5e7eb')};")
         row_layout.addWidget(label_widget, 1)
         row_layout.addWidget(icon_widget)
         column = min(index // CHECKLIST_ROWS_PER_COLUMN, CHECKLIST_COLUMNS - 1)
@@ -1120,6 +1156,9 @@ class MainWindow(QMainWindow):
         return "✕"
 
     def _set_icon_label(self, label: QLabel, severity: Severity) -> None:
+        if isinstance(label, StatusIconLabel):
+            label.set_severity(severity)
+            return
         label.setText(self._status_icon(severity))
         label.setStyleSheet(f"color: {SEVERITY_COLORS.get(severity, '#e5e7eb')};")
 
