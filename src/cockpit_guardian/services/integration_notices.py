@@ -71,4 +71,16 @@ INTEGRATION_NOTICES: tuple[IntegrationNotice, ...] = (
         "Windows Restore",
         "COM and device restore actions use Windows Plug and Play data and can require administrator rights. A backup is created before every restore attempt.",
     ),
+    IntegrationNotice(
+        "Vendor App Detection",
+        "Vendor tools are detected through installed-program records and running processes first. Cockpit Guardian does not rely on private app protocols unless a vendor documents them.",
+    ),
+    IntegrationNotice(
+        "Public SDK Candidates",
+        "Simucube sc-api and MOZA SDK are public candidates. Fanatec SDK access is request-based. Most other vendor tools should start with Windows, HID, USB, and installed-app metadata.",
+    ),
+    IntegrationNotice(
+        "VR Runtime Detection",
+        "Pimax Play and Meta Quest Link should be detected through OpenXR runtime, Windows services/processes, and installed-app metadata before any deeper integration is attempted.",
+    ),
 )

@@ -3,6 +3,11 @@
 These notes describe the assumptions Cockpit Guardian makes for SimHub, Arduino,
 ESP boards, and Windows restore actions.
 
+Vendor application/API checks are tracked in
+[`VENDOR_API_NOTICES.md`](VENDOR_API_NOTICES.md). That file documents which
+manufacturer tools can be handled through safe Windows/HID/USB detection and
+which ones may justify a deeper official SDK integration.
+
 ## SimHub
 
 SimHub Custom Serial Devices must be enabled and configured by the user. The

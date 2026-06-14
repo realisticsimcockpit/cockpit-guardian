@@ -12,9 +12,47 @@ from .windows_util import hidden_subprocess_kwargs, run_powershell_json
 SOFTWARE_CATALOG: dict[str, dict[str, object]] = {
     "SimHub": {"process": ["SimHubWPF", "SimHub"], "display": ["SimHub"]},
     "CrewChief": {"process": ["CrewChiefV4", "CrewChief"], "display": ["CrewChief"]},
-    "Moza Pit House": {"process": ["MOZA Pit House", "MOZAPitHouse"], "display": ["MOZA Pit House"]},
-    "SimPro Manager": {"process": ["SimProManager"], "display": ["SimPro Manager"]},
+    "Moza Pit House": {
+        "process": ["MOZA Pit House", "MOZAPitHouse"],
+        "display": ["MOZA Pit House"],
+    },
+    "SimPro Manager": {
+        "process": ["SimProManager", "SimProManager2", "SimProManager3"],
+        "display": ["SimPro Manager", "SimProManager"],
+    },
     "Pimax Play": {"process": ["PimaxClient", "PimaxPlay"], "display": ["Pimax Play"]},
+    "Meta Quest Link": {
+        "process": ["OculusClient", "OVRServer_x64", "MetaQuestLink"],
+        "display": ["Meta Quest Link", "Meta Horizon Link", "Oculus"],
+    },
+    "Fanatec App": {
+        "process": ["FanatecApp", "FanatecControlPanel", "FanaLab"],
+        "display": ["Fanatec App", "Fanatec Driver", "Fanatec Control Panel", "FanaLab"],
+    },
+    "Simucube Tuner": {
+        "process": ["SimucubeTuner", "TrueDrive"],
+        "display": ["Simucube Tuner", "Simucube True Drive", "True Drive"],
+    },
+    "VNM Config": {
+        "process": ["VNMConfig", "VNMSimCenter"],
+        "display": ["VNM Config", "VNM Sim Center", "VNM Simulation"],
+    },
+    "VRS Wheel Tool": {
+        "process": ["VRSWheelTool"],
+        "display": ["VRS Wheel Tool", "VRS DirectForce Pro", "Virtual Racing School"],
+    },
+    "Thrustmaster": {
+        "process": ["TARGETGUI", "TARGETScriptEditor", "Thrustmaster"],
+        "display": ["Thrustmaster", "T.A.R.G.E.T", "TARGET"],
+    },
+    "PXN Racing": {
+        "process": ["PXNRacing", "PXNWheel", "PXNSimRacing"],
+        "display": ["PXN Racing", "PXN Wheel", "PXN SimRacing"],
+    },
+    "CONSPIT Link": {
+        "process": ["CONSPITLink", "CONSPIT"],
+        "display": ["CONSPIT Link", "CONSPIT"],
+    },
     "OpenXR Companion": {"process": ["OpenXR-Companion"], "display": ["OpenXR Companion"]},
     "Stream Deck": {"process": ["StreamDeck"], "display": ["Stream Deck"]},
 }

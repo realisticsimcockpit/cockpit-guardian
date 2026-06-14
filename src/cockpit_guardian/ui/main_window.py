@@ -46,6 +46,7 @@ WINDOW_HEIGHT = 679
 YOUTUBE_URL = "https://www.youtube.com/@realisticsimcockpit"
 CHECKLIST_ROWS_PER_COLUMN = 8
 CHECKLIST_COLUMNS = 3
+CHECKLIST_COLUMN_WIDTH = 134
 
 DASHBOARD_TEXT = {
     "en": {
@@ -422,12 +423,14 @@ class MainWindow(QMainWindow):
 
         self.summary_content = QWidget()
         self.summary_content.setObjectName("SummaryContent")
-        self.summary_content.setMinimumWidth(420)
+        self.summary_content.setMinimumWidth(CHECKLIST_COLUMN_WIDTH * CHECKLIST_COLUMNS + 36)
         self.summary_content.setMaximumWidth(500)
         self.summary_checklist_layout = QGridLayout(self.summary_content)
         self.summary_checklist_layout.setContentsMargins(0, 0, 0, 0)
         self.summary_checklist_layout.setHorizontalSpacing(18)
         self.summary_checklist_layout.setVerticalSpacing(0)
+        for column in range(CHECKLIST_COLUMNS):
+            self.summary_checklist_layout.setColumnMinimumWidth(column, CHECKLIST_COLUMN_WIDTH)
         header_layout.addWidget(self.summary_content, 2, Qt.AlignmentFlag.AlignTop)
 
         right_panel = QWidget()
@@ -959,6 +962,7 @@ class MainWindow(QMainWindow):
     def _add_checklist_row(self, layout: QGridLayout, index: int, label: str, severity: Severity) -> None:
         row = QWidget()
         row.setObjectName("ChecklistRow")
+        row.setFixedWidth(CHECKLIST_COLUMN_WIDTH)
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(0, 0, 0, 0)
         row_layout.setSpacing(3)
@@ -977,7 +981,7 @@ class MainWindow(QMainWindow):
         grid_row = index % CHECKLIST_ROWS_PER_COLUMN
         if index >= CHECKLIST_ROWS_PER_COLUMN * CHECKLIST_COLUMNS:
             grid_row = CHECKLIST_ROWS_PER_COLUMN + index - (CHECKLIST_ROWS_PER_COLUMN * CHECKLIST_COLUMNS)
-        layout.addWidget(row, grid_row, column)
+        layout.addWidget(row, grid_row, column, Qt.AlignmentFlag.AlignLeft)
 
     @staticmethod
     def _status_icon(severity: Severity) -> str:
@@ -1127,7 +1131,7 @@ class MainWindow(QMainWindow):
         snapshot = self.controller.load_snapshot()
         root = QTreeWidgetItem(["Data directory", str(self.controller.config.paths.root)])
         self.advanced_tree.addTopLevelItem(root)
-        notices = QTreeWidgetItem(["Integration notices", "SimHub, Arduino, ESP, Windows"])
+        notices = QTreeWidgetItem(["Integration notices", "SimHub, Arduino, ESP, Windows, vendor apps"])
         for notice in INTEGRATION_NOTICES:
             notices.addChild(QTreeWidgetItem([notice.title, notice.body]))
         self.advanced_tree.addTopLevelItem(notices)
