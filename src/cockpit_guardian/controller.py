@@ -108,3 +108,14 @@ class AppController:
         self.logger.info("Configuration backup imported from %s", source)
         self.last_report = self.check_now()
         return backup
+
+    def update_joystick_order(self, order: list[str]) -> Snapshot:
+        snapshot = self.load_snapshot()
+        if snapshot is None:
+            raise ValueError("No saved configuration found. Use Save Configuration first.")
+        snapshot.joystick_order = list(order)
+        self.config.save_snapshot(snapshot)
+        if self.last_report:
+            self.last_report.joystick_order = self.joystick_manager.compare(order, self.last_report.joystick_order.current)
+        self.logger.info("Joystick order updated: %s", ", ".join(order))
+        return snapshot

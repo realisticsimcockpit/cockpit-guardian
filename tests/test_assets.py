@@ -11,6 +11,7 @@ def test_visual_assets_are_packaged():
         "brand_lockup.png",
         "lang_eng.png",
         "lang_fr.png",
+        "splash_screen.mp4",
         "tray_idle.png",
         "tray_ready.png",
         "tray_warning.png",

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QPointF, QSize, Qt, QThread, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, QPointF, QRectF, QSize, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -111,6 +111,13 @@ DASHBOARD_TEXT = {
         "no_quick_log": "No recent event",
         "last_ffb_clipping": "Last FFB Clipping at {time}",
         "last_usb_disconnect": "Last USB disconnect at {time}",
+        "busy_default": "Working",
+        "busy_save": "Saving configuration",
+        "busy_check": "Checking cockpit",
+        "busy_restore": "Restoring cockpit",
+        "busy_rollback": "Rolling back restore",
+        "busy_export": "Exporting backup",
+        "busy_import": "Importing backup",
         "ffb_clipping_detail": "FFB clipping {percent:.0f}% - Reduce in-game FFB gain",
         "usb_labels": {
             "USB 3.x capable path": "USB 3.x capable path",
@@ -191,6 +198,13 @@ DASHBOARD_TEXT = {
         "no_quick_log": "Aucun événement récent",
         "last_ffb_clipping": "Dernier écrêtage FFB à {time}",
         "last_usb_disconnect": "Dernière déconnexion USB à {time}",
+        "busy_default": "Traitement en cours",
+        "busy_save": "Enregistrement de la configuration",
+        "busy_check": "Vérification du cockpit",
+        "busy_restore": "Restauration du cockpit",
+        "busy_rollback": "Annulation de la restauration",
+        "busy_export": "Export de la sauvegarde",
+        "busy_import": "Import de la sauvegarde",
         "ffb_clipping_detail": "Écrêtage FFB {percent:.0f}% - réduisez le gain FFB dans le jeu",
         "usb_labels": {
             "USB 3.x capable path": "Chemin compatible USB 3.x",
@@ -306,6 +320,141 @@ class SeparatorTableWidget(QTableWidget):
         painter.end()
 
 
+class JoystickOrderTableWidget(SeparatorTableWidget):
+    order_changed = Signal(list)
+
+    def __init__(self, rows: int, columns: int, parent: QWidget | None = None) -> None:
+        super().__init__(rows, columns, parent)
+        self._drag_start_row = -1
+
+    def enable_row_reorder(self) -> None:
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDragDropOverwriteMode(False)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt override
+        position = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        self._drag_start_row = self.rowAt(position.y())
+        super().mousePressEvent(event)
+
+    def dropEvent(self, event) -> None:  # noqa: N802 - Qt override
+        if self._drag_start_row < 0:
+            super().dropEvent(event)
+            return
+        position = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        target_row = self.indexAt(position).row()
+        if target_row < 0:
+            target_row = self.rowCount()
+        elif self.dropIndicatorPosition() == QAbstractItemView.DropIndicatorPosition.BelowItem:
+            target_row += 1
+        if target_row > self._drag_start_row:
+            target_row -= 1
+        target_row = max(0, min(target_row, self.rowCount() - 1))
+        if target_row != self._drag_start_row:
+            self._move_row(self._drag_start_row, target_row)
+            self.order_changed.emit(self.current_order())
+        event.accept()
+        self._drag_start_row = -1
+
+    def _move_row(self, source_row: int, target_row: int) -> None:
+        items = [self.takeItem(source_row, column) for column in range(self.columnCount())]
+        self.removeRow(source_row)
+        self.insertRow(target_row)
+        for column, item in enumerate(items):
+            self.setItem(target_row, column, item)
+        self._renumber_rows()
+        self.setCurrentCell(target_row, 0)
+
+    def _renumber_rows(self) -> None:
+        for row in range(self.rowCount()):
+            number_item = self.item(row, 0)
+            if number_item:
+                number_item.setText(str(row + 1))
+
+    def current_order(self) -> list[str]:
+        return [
+            self.item(row, 1).text()
+            for row in range(self.rowCount())
+            if self.item(row, 1) and self.item(row, 1).text()
+        ]
+
+
+class BusyOverlay(QWidget):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._message = ""
+        self._progress = 0
+        self.hide()
+
+    def show_progress(self, message: str, progress: int = 0) -> None:
+        self._message = message
+        self._progress = max(0, min(100, progress))
+        self.show()
+        self.raise_()
+        self.update()
+
+    def set_progress(self, progress: int) -> None:
+        self._progress = max(0, min(100, progress))
+        self.update()
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt override
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 138))
+
+        panel_width = min(460, max(340, self.width() - 80))
+        panel_height = 150
+        panel = QRectF(
+            (self.width() - panel_width) / 2,
+            (self.height() - panel_height) / 2,
+            panel_width,
+            panel_height,
+        )
+        painter.setPen(QPen(QColor(255, 255, 255, 120), 1))
+        painter.setBrush(QColor(0, 0, 0, 230))
+        painter.drawRoundedRect(panel, 6, 6)
+
+        title_font = painter.font()
+        title_font.setBold(True)
+        title_font.setPointSize(12)
+        painter.setFont(title_font)
+        painter.setPen(QColor("#f8fafc"))
+        painter.drawText(panel.adjusted(18, 18, -18, -92), Qt.AlignmentFlag.AlignCenter, self._message.upper())
+
+        led_count = 18
+        led_gap = 4
+        led_height = 18
+        led_total_gap = led_gap * (led_count - 1)
+        led_width = (panel.width() - 40 - led_total_gap) / led_count
+        led_y = panel.y() + 74
+        active_count = round((self._progress / 100) * led_count)
+        for index in range(led_count):
+            if index >= active_count:
+                color = QColor(35, 35, 35)
+            elif index >= 14:
+                color = QColor("#ef4444")
+            elif index >= 10:
+                color = QColor("#facc15")
+            else:
+                color = QColor("#22c55e")
+            led = QRectF(panel.x() + 20 + index * (led_width + led_gap), led_y, led_width, led_height)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(color)
+            painter.drawRoundedRect(led, 2, 2)
+
+        percent_font = painter.font()
+        percent_font.setBold(True)
+        percent_font.setPointSize(16)
+        painter.setFont(percent_font)
+        painter.setPen(QColor("#ffffff"))
+        painter.drawText(panel.adjusted(0, 102, 0, -14), Qt.AlignmentFlag.AlignCenter, f"{self._progress}%")
+        event.accept()
+
+
 class Worker(QObject):
     finished = Signal(object)
     failed = Signal(str)
@@ -333,6 +482,7 @@ class MainWindow(QMainWindow):
         self._threads: list[QThread] = []
         self._workers: dict[QThread, Worker] = {}
         self._busy_operations = 0
+        self._busy_progress = 0
 
         self.background = BackgroundWidget("app_background.png")
         root_layout = QVBoxLayout(self.background)
@@ -374,6 +524,11 @@ class MainWindow(QMainWindow):
         footer_layout.addStretch(1)
         root_layout.addWidget(self.footer)
         self.setCentralWidget(self.background)
+        self.busy_overlay = BusyOverlay(self.background)
+        self.busy_overlay.setGeometry(self.background.rect())
+        self.busy_progress_timer = QTimer(self)
+        self.busy_progress_timer.setInterval(90)
+        self.busy_progress_timer.timeout.connect(self._advance_busy_progress)
         self._build_dashboard()
         self._build_usb_health_tab()
         self._build_logs_tab()
@@ -398,6 +553,8 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt override
         super().resizeEvent(event)
+        if hasattr(self, "busy_overlay"):
+            self.busy_overlay.setGeometry(self.background.rect())
         self._resize_dashboard_columns()
 
     def _resize_dashboard_columns(self) -> None:
@@ -606,9 +763,11 @@ class MainWindow(QMainWindow):
         bottom_row = QHBoxLayout()
         bottom_row.setSpacing(14)
 
-        self.joystick_table = SeparatorTableWidget(0, 3)
+        self.joystick_table = JoystickOrderTableWidget(0, 3)
         self._set_table_headers(self.joystick_table, ["#", "Joystick Order", "USB"])
         self._configure_table(self.joystick_table)
+        self.joystick_table.enable_row_reorder()
+        self.joystick_table.order_changed.connect(self._joystick_order_changed)
         self.joystick_panel = self._panel("Joystick Order", self.joystick_table)
         self.joystick_panel_title = self.joystick_panel.title_label
         self.joystick_panel_icon = self.joystick_panel.title_icon
@@ -770,7 +929,8 @@ class MainWindow(QMainWindow):
         panel.title_icon = icon
         return panel
 
-    def _run_async(self, fn, callback) -> None:
+    def _run_async(self, fn, callback, busy_text: str | None = None) -> None:
+        self._show_busy_overlay(busy_text or self._dashboard_text("busy_default"), reset=self._busy_operations == 0)
         self._set_busy(True)
         thread = QThread(self)
         worker = Worker(fn)
@@ -795,6 +955,8 @@ class MainWindow(QMainWindow):
         if thread in self._threads:
             self._threads.remove(thread)
         self._workers.pop(thread, None)
+        if self._busy_operations == 0:
+            self._complete_busy_overlay()
 
     def _set_busy(self, busy: bool) -> None:
         for button in [
@@ -807,20 +969,44 @@ class MainWindow(QMainWindow):
         ]:
             button.setDisabled(busy)
 
+    def _show_busy_overlay(self, message: str, reset: bool = True) -> None:
+        if reset:
+            self._busy_progress = 4
+        self.busy_overlay.show_progress(message, self._busy_progress)
+        if not self.busy_progress_timer.isActive():
+            self.busy_progress_timer.start()
+
+    def _advance_busy_progress(self) -> None:
+        if self._busy_operations <= 0:
+            return
+        if self._busy_progress < 92:
+            self._busy_progress += max(1, round((92 - self._busy_progress) * 0.08))
+            self.busy_overlay.set_progress(self._busy_progress)
+
+    def _complete_busy_overlay(self) -> None:
+        self.busy_progress_timer.stop()
+        self._busy_progress = 100
+        self.busy_overlay.set_progress(100)
+        QTimer.singleShot(250, self._hide_busy_overlay_if_idle)
+
+    def _hide_busy_overlay_if_idle(self) -> None:
+        if self._busy_operations == 0:
+            self.busy_overlay.hide()
+
     def save_configuration(self) -> None:
-        self._run_async(self.controller.save_configuration, self._save_configuration_finished)
+        self._run_async(self.controller.save_configuration, self._save_configuration_finished, self._dashboard_text("busy_save"))
 
     def _save_configuration_finished(self, _) -> None:
         self.check_now()
 
     def check_now(self) -> None:
-        self._run_async(self.controller.check_now, self.update_report)
+        self._run_async(self.controller.check_now, self.update_report, self._dashboard_text("busy_check"))
 
     def restore(self) -> None:
-        self._run_async(self.controller.restore, self._restore_finished)
+        self._run_async(self.controller.restore, self._restore_finished, self._dashboard_text("busy_restore"))
 
     def rollback(self) -> None:
-        self._run_async(self.controller.rollback_last_restore, self._rollback_finished)
+        self._run_async(self.controller.rollback_last_restore, self._rollback_finished, self._dashboard_text("busy_rollback"))
 
     def export_config_backup(self) -> None:
         default_path = Path.home() / self.controller.default_config_backup_name()
@@ -832,7 +1018,7 @@ class MainWindow(QMainWindow):
         )
         if not target:
             return
-        self._run_async(lambda: self.controller.export_config_backup(Path(target)), self._export_config_finished)
+        self._run_async(lambda: self.controller.export_config_backup(Path(target)), self._export_config_finished, self._dashboard_text("busy_export"))
 
     def import_config_backup(self) -> None:
         source, _ = QFileDialog.getOpenFileName(
@@ -850,7 +1036,7 @@ class MainWindow(QMainWindow):
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
-        self._run_async(lambda: self.controller.import_config_backup(Path(source)), self._import_config_finished)
+        self._run_async(lambda: self.controller.import_config_backup(Path(source)), self._import_config_finished, self._dashboard_text("busy_import"))
 
     def _restore_finished(self, report: RestoreReport) -> None:
         QMessageBox.information(self, "Restore", "\n".join(action.message for action in report.actions))
@@ -1045,7 +1231,7 @@ class MainWindow(QMainWindow):
         return "..." + compact[-31:]
 
     def _update_joystick(self, report: CheckReport) -> None:
-        order = report.joystick_order.current or report.joystick_order.expected
+        order = report.joystick_order.expected or report.joystick_order.current
         devices_by_name = self._devices_by_joystick_name(report)
         self.joystick_table.setRowCount(0)
         for index, name in enumerate(order, start=1):
@@ -1060,6 +1246,17 @@ class MainWindow(QMainWindow):
             self.joystick_table.setItem(0, 0, self._table_item("-"))
             self.joystick_table.setItem(0, 1, self._table_item(report.joystick_order.message))
             self.joystick_table.setItem(0, 2, self._table_item("-"))
+
+    def _joystick_order_changed(self, order: list[str]) -> None:
+        try:
+            self.controller.update_joystick_order(order)
+        except Exception as exc:
+            QMessageBox.warning(self, "Cockpit Guardian", str(exc))
+            if self.controller.last_report:
+                self._update_joystick(self.controller.last_report)
+            return
+        if self.controller.last_report:
+            self._update_status_icons(self.controller.last_report)
 
     @staticmethod
     def _devices_by_joystick_name(report: CheckReport) -> dict[str, object]:

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from cockpit_guardian.config_manager import ConfigManager
 from cockpit_guardian.controller import AppController
-from cockpit_guardian.models import CheckReport, GlobalStatus, Settings, utc_now_iso
+from cockpit_guardian.models import CheckReport, GlobalStatus, JoystickOrderResult, Settings, utc_now_iso
 from cockpit_guardian.paths import AppPaths
 
 
@@ -42,6 +42,9 @@ class FakeDetector:
 class FakeJoystickManager:
     def read_current_order(self, devices):
         return []
+
+    def compare(self, expected, current):
+        return JoystickOrderResult(expected=list(expected), current=list(current), ok=list(expected) == list(current))
 
 
 class FakeSoftwareDetector:
@@ -99,6 +102,15 @@ class ControllerTests(unittest.TestCase):
 
             self.assertEqual(check_engine.deep_scan_values, [True, False])
             self.assertTrue(controller.load_settings().initial_deep_windows_scan_done)
+
+    def test_update_joystick_order_persists_snapshot_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            controller, _, _ = _controller(tmp)
+            controller.config.create_snapshot("Rig", [], [], ["Wheel", "Pedals"])
+
+            controller.update_joystick_order(["Pedals", "Wheel"])
+
+            self.assertEqual(controller.load_snapshot().joystick_order, ["Pedals", "Wheel"])
 
 
 if __name__ == "__main__":
