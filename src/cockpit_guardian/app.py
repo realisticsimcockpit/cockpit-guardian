@@ -29,12 +29,35 @@ from .ui.assets import asset_icon, asset_path
 from .ui.main_window import MainWindow
 
 
+STARTUP_STATUS_TEXT = {
+    "en": {
+        "start": "Starting Cockpit Guardian",
+        "config": "Loading profile and backups",
+        "windows": "Initializing Windows USB / HID / COM modules",
+        "software": "Preparing SimHub and cockpit software detection",
+        "interface": "Building dashboard interface",
+        "scan": "Preparing first Windows scan",
+        "ready": "Cockpit Guardian ready",
+    },
+    "fr": {
+        "start": "Démarrage de Cockpit Guardian",
+        "config": "Chargement du profil et des sauvegardes",
+        "windows": "Initialisation des modules Windows USB / HID / COM",
+        "software": "Préparation de SimHub et des logiciels cockpit",
+        "interface": "Construction de l'interface tableau de bord",
+        "scan": "Préparation du premier scan Windows",
+        "ready": "Cockpit Guardian prêt",
+    },
+}
+
+
 class StartupSplash(QWidget):
-    def __init__(self) -> None:
+    def __init__(self, language: str = "en") -> None:
         super().__init__(None, Qt.WindowType.FramelessWindowHint | Qt.WindowType.SplashScreen)
         self.setWindowTitle("Cockpit Guardian")
         self.setFixedSize(905, 679)
         self.setStyleSheet("background: #000000; color: #ffffff;")
+        self._language = language if language in STARTUP_STATUS_TEXT else "en"
         self._asset_context = None
         self._player = None
         self._audio = None
@@ -60,6 +83,15 @@ class StartupSplash(QWidget):
             fallback.setAlignment(Qt.AlignmentFlag.AlignCenter)
             fallback.setStyleSheet("font-size: 28px; font-weight: 800; color: #ffffff;")
             layout.addWidget(fallback)
+        self.status_label = QLabel(self)
+        self.status_label.setObjectName("StartupStatus")
+        self.status_label.setStyleSheet(
+            "color: #ffffff; background: transparent; font-size: 13px; font-weight: 700; letter-spacing: 0.5px;"
+        )
+        self.status_label.setText(self._status_text("start"))
+        self.status_label.adjustSize()
+        self._position_status_label()
+        self.status_label.raise_()
 
     def show_and_start(self) -> None:
         screen = QApplication.primaryScreen()
@@ -69,6 +101,24 @@ class StartupSplash(QWidget):
         self.show()
         if self._player:
             self._player.play()
+        self.status_label.raise_()
+
+    def set_status(self, key: str) -> None:
+        self.status_label.setText(self._status_text(key))
+        self.status_label.adjustSize()
+        self._position_status_label()
+        self.status_label.raise_()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt override
+        super().resizeEvent(event)
+        self._position_status_label()
+
+    def _position_status_label(self) -> None:
+        margin = 24
+        self.status_label.move(margin, self.height() - self.status_label.height() - margin)
+
+    def _status_text(self, key: str) -> str:
+        return STARTUP_STATUS_TEXT[self._language].get(key, STARTUP_STATUS_TEXT[self._language]["start"])
 
     def finish(self) -> None:
         if self._player:
@@ -79,12 +129,23 @@ class StartupSplash(QWidget):
             self._asset_context = None
 
 
-def build_controller() -> AppController:
+def startup_language() -> str:
+    try:
+        return ConfigManager(AppPaths()).load_settings().language
+    except Exception:
+        return "en"
+
+
+def build_controller(status_callback=None) -> AppController:
+    status = status_callback or (lambda _key: None)
+    status("config")
     paths = AppPaths()
     config = ConfigManager(paths)
     logger = configure_logging(paths)
+    status("windows")
     detector = DeviceDetector()
     joystick_manager = JoystickOrderManager()
+    status("software")
     software_detector = SoftwareDetector()
     check_engine = CheckEngine(
         detector=detector,
@@ -118,10 +179,17 @@ def main() -> int:
     app.setApplicationName("Cockpit Guardian")
     app.setWindowIcon(asset_icon("app_icon_256.png"))
     app.setQuitOnLastWindowClosed(False)
-    splash = StartupSplash()
+    splash = StartupSplash(startup_language())
     splash.show_and_start()
     app.processEvents()
-    window = MainWindow(build_controller())
+    controller = build_controller(lambda key: (splash.set_status(key), app.processEvents()))
+    splash.set_status("interface")
+    app.processEvents()
+    window = MainWindow(controller)
+    splash.set_status("scan")
+    app.processEvents()
     window.show()
+    splash.set_status("ready")
+    app.processEvents()
     splash.finish()
     return app.exec()
