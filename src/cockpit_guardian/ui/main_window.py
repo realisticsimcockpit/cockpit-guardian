@@ -50,8 +50,6 @@ DASHBOARD_TEXT = {
         "logo_credit": "by REALISTIC SIMCOCKPIT",
         "footer_prefix": "Author:",
         "footer_version": "Version",
-        "status_initial": "Save config, then run a check.",
-        "status_ready": "All saved cockpit devices look ready.",
         "status_labels": {
             GlobalStatus.CHECK_NOT_DONE: "Check Not Done",
             GlobalStatus.COCKPIT_READY: "Cockpit Ready",
@@ -65,13 +63,6 @@ DASHBOARD_TEXT = {
             Severity.WARNING: "Warning",
             Severity.RESTORE_NEEDED: "Restore Needed",
             Severity.CRITICAL: "Critical",
-        },
-        "software_states": {
-            SoftwareState.RUNNING: "Running",
-            SoftwareState.INSTALLED_CLOSED: "Installed but closed",
-            SoftwareState.NOT_DETECTED: "Not detected",
-            SoftwareState.REQUIRED_MISSING: "Required missing",
-            SoftwareState.OPTIONAL_MISSING: "Optional missing",
         },
         "device_kinds": {
             DeviceKind.WHEEL: "Wheel",
@@ -105,8 +96,6 @@ DASHBOARD_TEXT = {
         "logo_credit": "par REALISTIC SIMCOCKPIT",
         "footer_prefix": "Auteur :",
         "footer_version": "Version",
-        "status_initial": "Sauvegardez, puis contrôlez.",
-        "status_ready": "Les périphériques sauvegardés sont prêts.",
         "status_labels": {
             GlobalStatus.CHECK_NOT_DONE: "Contrôle non effectué",
             GlobalStatus.COCKPIT_READY: "Cockpit prêt",
@@ -120,13 +109,6 @@ DASHBOARD_TEXT = {
             Severity.WARNING: "Avertissement",
             Severity.RESTORE_NEEDED: "À restaurer",
             Severity.CRITICAL: "Critique",
-        },
-        "software_states": {
-            SoftwareState.RUNNING: "En cours",
-            SoftwareState.INSTALLED_CLOSED: "Installé, fermé",
-            SoftwareState.NOT_DETECTED: "Non détecté",
-            SoftwareState.REQUIRED_MISSING: "Requis absent",
-            SoftwareState.OPTIONAL_MISSING: "Optionnel absent",
         },
         "device_kinds": {
             DeviceKind.WHEEL: "Volant",
@@ -391,15 +373,22 @@ class MainWindow(QMainWindow):
         self.logo_credit_label.setFixedHeight(12)
         self.status_title = QLabel("CHECK NOT DONE")
         self.status_title.setObjectName("StatusTitle")
-        self.status_subtitle = QLabel("Save your cockpit configuration, then run a check.")
-        self.status_subtitle.setObjectName("StatusSubtitle")
-        self.status_subtitle.setWordWrap(False)
         logo_layout.addWidget(self.dashboard_logo)
         logo_layout.addWidget(self.logo_credit_label)
         logo_layout.addSpacing(4)
         logo_layout.addWidget(self.status_title)
-        logo_layout.addWidget(self.status_subtitle)
-        header_layout.addWidget(logo_block, 1)
+        logo_layout.addStretch(1)
+        header_layout.addWidget(logo_block, 1, Qt.AlignmentFlag.AlignTop)
+
+        self.summary_content = QWidget()
+        self.summary_content.setObjectName("SummaryContent")
+        self.summary_content.setMinimumWidth(360)
+        self.summary_content.setMaximumWidth(440)
+        self.summary_checklist_layout = QVBoxLayout(self.summary_content)
+        self.summary_checklist_layout.setContentsMargins(0, 0, 0, 0)
+        self.summary_checklist_layout.setSpacing(2)
+        self.summary_checklist_layout.addStretch(1)
+        header_layout.addWidget(self.summary_content, 2, Qt.AlignmentFlag.AlignTop)
 
         right_panel = QWidget()
         right_panel.setObjectName("RightPanel")
@@ -466,15 +455,6 @@ class MainWindow(QMainWindow):
         header_layout.addWidget(right_panel, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
         layout.addWidget(self.dashboard_header)
         self._apply_status_style(GlobalStatus.CHECK_NOT_DONE)
-
-        self.summary_content = QWidget()
-        self.summary_content.setObjectName("SummaryContent")
-        self.summary_content.setMaximumWidth(760)
-        self.summary_checklist_layout = QVBoxLayout(self.summary_content)
-        self.summary_checklist_layout.setContentsMargins(10, 0, 10, 0)
-        self.summary_checklist_layout.setSpacing(0)
-        self.summary_checklist_layout.addStretch(1)
-        layout.addWidget(self.summary_content, 0, Qt.AlignmentFlag.AlignHCenter)
 
         tables = QVBoxLayout()
         tables.setSpacing(14)
@@ -734,7 +714,6 @@ class MainWindow(QMainWindow):
 
     def update_report(self, report: CheckReport) -> None:
         self.status_title.setText(self._status_text(report.global_status).upper())
-        self.status_subtitle.setText(report.issues[0] if report.issues else self._dashboard_text("status_ready"))
         self._apply_status_style(report.global_status)
         self.tray.update_report(report)
         self._update_device_table(report)
@@ -750,7 +729,6 @@ class MainWindow(QMainWindow):
         self.status_title.setStyleSheet(
             f"font-size: 16px; font-weight: 800; color: {color}; background: transparent;"
         )
-        self.status_subtitle.setStyleSheet("font-size: 10px; color: #d1d5db; background: transparent;")
 
     def _dashboard_text(self, key: str):
         language = self.settings.language if self.settings.language in DASHBOARD_TEXT else "en"
@@ -762,9 +740,6 @@ class MainWindow(QMainWindow):
     def _severity_text(self, severity: Severity) -> str:
         return self._dashboard_text("severity_labels").get(severity, severity.value)
 
-    def _software_state_text(self, state: SoftwareState) -> str:
-        return self._dashboard_text("software_states").get(state, state.value)
-
     def _device_kind_text(self, kind: DeviceKind | None) -> str:
         if not kind:
             return self._dashboard_text("unknown")
@@ -773,7 +748,6 @@ class MainWindow(QMainWindow):
     def _refresh_dashboard_texts(self) -> None:
         status = self.controller.last_report.global_status if self.controller.last_report else GlobalStatus.CHECK_NOT_DONE
         self.status_title.setText(self._status_text(status).upper())
-        self.status_subtitle.setText(self._dashboard_text("status_initial"))
         self.save_button.setText(self._dashboard_text("save"))
         self.check_button.setText(self._dashboard_text("check"))
         self.restore_button.setText(self._dashboard_text("restore"))
@@ -791,7 +765,6 @@ class MainWindow(QMainWindow):
                 self.tabs.setTabText(index, label)
         if self.controller.last_report:
             report = self.controller.last_report
-            self.status_subtitle.setText(report.issues[0] if report.issues else self._dashboard_text("status_ready"))
             self._update_summary(report)
         else:
             self._clear_layout(self.summary_checklist_layout)
@@ -907,36 +880,22 @@ class MainWindow(QMainWindow):
         self._add_checklist_row(
             self.summary_checklist_layout,
             self._dashboard_text("usb_health"),
-            self._compact_usb_health_message(report.usb_health.message),
             report.usb_health.severity,
         )
         self._add_checklist_row(
             self.summary_checklist_layout,
             self._dashboard_text("joystick_order"),
-            report.joystick_order.message,
             Severity.OK if report.joystick_order.ok else Severity.WARNING,
         )
         for software in report.software:
             self._add_checklist_row(
                 self.summary_checklist_layout,
                 software.name,
-                self._software_state_text(software.state),
                 self._severity_from_software_state(software.state),
             )
         self.summary_checklist_layout.addStretch(1)
 
-    @staticmethod
-    def _compact_usb_health_message(message: str) -> str:
-        text = message.strip()
-        for prefix in ("USB Health :", "USB Health:"):
-            if text.startswith(prefix):
-                text = text[len(prefix) :].strip(" -")
-                break
-        if text.lower().startswith("score ") and " - " in text:
-            text = text.split(" - ", 1)[1].strip()
-        return text or "OK"
-
-    def _add_checklist_row(self, layout: QVBoxLayout, label: str, status: str, severity: Severity) -> None:
+    def _add_checklist_row(self, layout: QVBoxLayout, label: str, severity: Severity) -> None:
         row = QWidget()
         row.setObjectName("ChecklistRow")
         row_layout = QHBoxLayout(row)
@@ -944,20 +903,16 @@ class MainWindow(QMainWindow):
         row_layout.setSpacing(12)
         label_widget = QLabel(label)
         label_widget.setObjectName("ChecklistName")
-        label_widget.setMinimumWidth(210)
         label_widget.setWordWrap(False)
-        status_widget = QLabel(f"{self._status_icon(severity)} {status}")
-        status_widget.setObjectName("ChecklistStatus")
-        status_widget.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        status_widget.setWordWrap(False)
-        status_widget.setStyleSheet(f"color: {SEVERITY_COLORS.get(severity, '#e5e7eb')};")
+        icon_widget = QLabel(self._status_icon(severity))
+        icon_widget.setObjectName("ChecklistIcon")
+        icon_widget.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        icon_widget.setFixedWidth(28)
+        icon_widget.setStyleSheet(f"color: {SEVERITY_COLORS.get(severity, '#e5e7eb')};")
         row_layout.addWidget(label_widget, 0)
-        row_layout.addWidget(status_widget, 1)
+        row_layout.addStretch(1)
+        row_layout.addWidget(icon_widget)
         layout.addWidget(row)
-        separator = QFrame()
-        separator.setObjectName("ChecklistSeparator")
-        separator.setFrameShape(QFrame.Shape.HLine)
-        layout.addWidget(separator)
 
     @staticmethod
     def _status_icon(severity: Severity) -> str:
