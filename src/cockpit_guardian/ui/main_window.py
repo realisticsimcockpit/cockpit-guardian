@@ -44,7 +44,7 @@ from ..services.integration_notices import INTEGRATION_NOTICES
 WINDOW_WIDTH = 905
 WINDOW_HEIGHT = 679
 YOUTUBE_URL = "https://www.youtube.com/@realisticsimcockpit"
-CHECKLIST_ROWS_PER_COLUMN = 5
+CHECKLIST_ROWS_PER_COLUMN = 8
 CHECKLIST_COLUMNS = 3
 
 DASHBOARD_TEXT = {
@@ -77,6 +77,18 @@ DASHBOARD_TEXT = {
             DeviceKind.WIND_SIMULATOR: "Wind Simulator",
             DeviceKind.OTHER: "Other",
         },
+        "checklist_device_kinds": {
+            DeviceKind.WHEEL: "Wheel base",
+            DeviceKind.PEDALS: "Pedals",
+            DeviceKind.SHIFTER: "Shifter",
+            DeviceKind.HANDBRAKE: "Handbrake",
+            DeviceKind.BUTTON_BOX: "Button box",
+            DeviceKind.DDU: "DDU display",
+            DeviceKind.ARDUINO_SIMHUB: "SimHub Arduino",
+            DeviceKind.WIND_SIMULATOR: "Wind",
+            DeviceKind.OTHER: "Device",
+        },
+        "software_group": "Software",
         "unknown": "Unknown",
         "detected_com_status": "{com} detected",
         "com_mismatch_status": "Expected {expected}, detected {detected}",
@@ -123,6 +135,18 @@ DASHBOARD_TEXT = {
             DeviceKind.WIND_SIMULATOR: "Ventilation",
             DeviceKind.OTHER: "Autre",
         },
+        "checklist_device_kinds": {
+            DeviceKind.WHEEL: "Base volant",
+            DeviceKind.PEDALS: "Pédalier",
+            DeviceKind.SHIFTER: "Boîte",
+            DeviceKind.HANDBRAKE: "Frein à main",
+            DeviceKind.BUTTON_BOX: "Boîtier boutons",
+            DeviceKind.DDU: "Écran DDU",
+            DeviceKind.ARDUINO_SIMHUB: "Arduino SimHub",
+            DeviceKind.WIND_SIMULATOR: "Ventilation",
+            DeviceKind.OTHER: "Périphérique",
+        },
+        "software_group": "Logiciels",
         "unknown": "Inconnu",
         "detected_com_status": "{com} détecté",
         "com_mismatch_status": "Attendu {expected}, détecté {detected}",
@@ -747,6 +771,11 @@ class MainWindow(QMainWindow):
             return self._dashboard_text("unknown")
         return self._dashboard_text("device_kinds").get(kind, kind.value)
 
+    def _checklist_device_kind_text(self, kind: DeviceKind | None) -> str:
+        if not kind:
+            return self._dashboard_text("unknown")
+        return self._dashboard_text("checklist_device_kinds").get(kind, self._device_kind_text(kind))
+
     def _refresh_dashboard_texts(self) -> None:
         status = self.controller.last_report.global_status if self.controller.last_report else GlobalStatus.CHECK_NOT_DONE
         self.status_title.setText(self._status_text(status).upper())
@@ -882,8 +911,15 @@ class MainWindow(QMainWindow):
             (self._dashboard_text("usb_health"), report.usb_health.severity),
             (self._dashboard_text("joystick_order"), Severity.OK if report.joystick_order.ok else Severity.WARNING),
         ]
-        for software in report.software:
-            items.append((software.name, self._severity_from_software_state(software.state)))
+        seen_device_ids: set[str] = set()
+        for check in report.device_checks:
+            device = check.expected or check.detected
+            if not device or device.id in seen_device_ids:
+                continue
+            seen_device_ids.add(device.id)
+            items.append((self._checklist_device_kind_text(device.kind), check.severity))
+        if report.software:
+            items.append((self._dashboard_text("software_group"), self._software_summary_severity(report.software)))
         for index, (label, severity) in enumerate(items):
             self._add_checklist_row(self.summary_checklist_layout, index, label, severity)
 
@@ -927,6 +963,22 @@ class MainWindow(QMainWindow):
         if state == SoftwareState.REQUIRED_MISSING:
             return Severity.CRITICAL
         return Severity.INFO
+
+    @classmethod
+    def _software_summary_severity(cls, software: list) -> Severity:
+        rank = {
+            Severity.OK: 0,
+            Severity.INFO: 1,
+            Severity.WARNING: 2,
+            Severity.RESTORE_NEEDED: 3,
+            Severity.CRITICAL: 4,
+        }
+        severity = Severity.OK
+        for item in software:
+            item_severity = cls._severity_from_software_state(item.state)
+            if rank[item_severity] > rank[severity]:
+                severity = item_severity
+        return severity
 
     @staticmethod
     def _clear_layout(layout) -> None:
