@@ -403,6 +403,20 @@ class MainWindow(QMainWindow):
         logo_layout.addWidget(self.logo_credit_label)
         logo_layout.addSpacing(4)
         logo_layout.addWidget(self.status_title)
+        self.usb_status_row = QWidget()
+        self.usb_status_row.setObjectName("StatusMetric")
+        usb_status_layout = QHBoxLayout(self.usb_status_row)
+        usb_status_layout.setContentsMargins(0, 0, 0, 0)
+        usb_status_layout.setSpacing(3)
+        self.usb_status_label = QLabel()
+        self.usb_status_label.setObjectName("StatusMetricLabel")
+        self.usb_status_icon = QLabel()
+        self.usb_status_icon.setObjectName("StatusMetricIcon")
+        self.usb_status_icon.setFixedWidth(14)
+        usb_status_layout.addWidget(self.usb_status_label)
+        usb_status_layout.addWidget(self.usb_status_icon)
+        usb_status_layout.addStretch(1)
+        logo_layout.addWidget(self.usb_status_row)
         logo_layout.addStretch(1)
         header_layout.addWidget(logo_block, 1, Qt.AlignmentFlag.AlignTop)
 
@@ -491,6 +505,7 @@ class MainWindow(QMainWindow):
         self.device_table.setAlternatingRowColors(True)
         self.com_ports_panel = self._panel("COM Ports", self.device_table)
         self.com_ports_panel_title = self.com_ports_panel.title_label
+        self.com_ports_panel_icon = self.com_ports_panel.title_icon
         tables.addWidget(self.com_ports_panel, 3)
 
         self.joystick_table = SeparatorTableWidget(0, 3)
@@ -498,6 +513,7 @@ class MainWindow(QMainWindow):
         self._configure_table(self.joystick_table)
         self.joystick_panel = self._panel("Joystick Order", self.joystick_table)
         self.joystick_panel_title = self.joystick_panel.title_label
+        self.joystick_panel_icon = self.joystick_panel.title_icon
         tables.addWidget(self.joystick_panel, 2)
         layout.addLayout(tables, 1)
 
@@ -619,12 +635,21 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(8, 6, 8, 8)
         layout.setSpacing(6)
+        title_layout = QHBoxLayout()
+        title_layout.setContentsMargins(0, 0, 0, 0)
+        title_layout.setSpacing(4)
         label = QLabel(title)
         label.setObjectName("PanelTitle")
-        label.setStyleSheet("font-size: 12px; font-weight: 700;")
-        layout.addWidget(label)
+        icon = QLabel()
+        icon.setObjectName("PanelTitleIcon")
+        icon.setFixedWidth(16)
+        title_layout.addWidget(label)
+        title_layout.addWidget(icon)
+        title_layout.addStretch(1)
+        layout.addLayout(title_layout)
         layout.addWidget(child)
         panel.title_label = label
+        panel.title_icon = icon
         return panel
 
     def _run_async(self, fn, callback) -> None:
@@ -741,6 +766,7 @@ class MainWindow(QMainWindow):
     def update_report(self, report: CheckReport) -> None:
         self.status_title.setText(self._status_text(report.global_status).upper())
         self._apply_status_style(report.global_status)
+        self._update_status_icons(report)
         self.tray.update_report(report)
         self._update_device_table(report)
         self._update_joystick(report)
@@ -786,6 +812,7 @@ class MainWindow(QMainWindow):
         self.export_config_button.setText(self._dashboard_text("export"))
         self.import_config_button.setText(self._dashboard_text("import"))
         self.logo_credit_label.setText(self._dashboard_text("logo_credit"))
+        self.usb_status_label.setText(self._dashboard_text("usb_health"))
         self.com_ports_panel_title.setText(self._dashboard_text("com_ports"))
         self._set_table_headers(self.device_table, self._dashboard_text("device_headers"))
         self._set_table_headers(self.joystick_table, self._dashboard_text("joystick_headers"))
@@ -796,9 +823,13 @@ class MainWindow(QMainWindow):
                 self.tabs.setTabText(index, label)
         if self.controller.last_report:
             report = self.controller.last_report
+            self._update_status_icons(report)
             self._update_summary(report)
         else:
             self._clear_layout(self.summary_checklist_layout)
+            self._set_icon_label(self.usb_status_icon, Severity.INFO)
+            self._set_icon_label(self.com_ports_panel_icon, Severity.INFO)
+            self._set_icon_label(self.joystick_panel_icon, Severity.INFO)
         self.footer_prefix_label.setText(self._dashboard_text("footer_prefix"))
         self.footer_label.setText(
             f'<a style="color: #ffffff; text-decoration: none;" href="{YOUTUBE_URL}">REALISTIC SIMCOCKPIT</a>'
@@ -907,10 +938,7 @@ class MainWindow(QMainWindow):
 
     def _update_summary(self, report: CheckReport) -> None:
         self._clear_layout(self.summary_checklist_layout)
-        items = [
-            (self._dashboard_text("usb_health"), report.usb_health.severity),
-            (self._dashboard_text("joystick_order"), Severity.OK if report.joystick_order.ok else Severity.WARNING),
-        ]
+        items = []
         seen_device_ids: set[str] = set()
         for check in report.device_checks:
             device = check.expected or check.detected
@@ -922,6 +950,11 @@ class MainWindow(QMainWindow):
             items.append((self._dashboard_text("software_group"), self._software_summary_severity(report.software)))
         for index, (label, severity) in enumerate(items):
             self._add_checklist_row(self.summary_checklist_layout, index, label, severity)
+
+    def _update_status_icons(self, report: CheckReport) -> None:
+        self._set_icon_label(self.usb_status_icon, report.usb_health.severity)
+        self._set_icon_label(self.com_ports_panel_icon, self._serial_summary_severity(report))
+        self._set_icon_label(self.joystick_panel_icon, Severity.OK if report.joystick_order.ok else Severity.WARNING)
 
     def _add_checklist_row(self, layout: QGridLayout, index: int, label: str, severity: Severity) -> None:
         row = QWidget()
@@ -954,6 +987,16 @@ class MainWindow(QMainWindow):
             return "⚠"
         return "✕"
 
+    def _set_icon_label(self, label: QLabel, severity: Severity) -> None:
+        label.setText(self._status_icon(severity))
+        label.setStyleSheet(f"color: {SEVERITY_COLORS.get(severity, '#e5e7eb')};")
+
+    def _serial_summary_severity(self, report: CheckReport) -> Severity:
+        severities = [check.severity for check in report.device_checks if self._is_serial_check(check)]
+        if not severities:
+            return Severity.INFO
+        return self._worst_severity(severities)
+
     @staticmethod
     def _severity_from_software_state(state: SoftwareState) -> Severity:
         if state == SoftwareState.RUNNING:
@@ -966,6 +1009,10 @@ class MainWindow(QMainWindow):
 
     @classmethod
     def _software_summary_severity(cls, software: list) -> Severity:
+        return cls._worst_severity(cls._severity_from_software_state(item.state) for item in software)
+
+    @staticmethod
+    def _worst_severity(severities) -> Severity:
         rank = {
             Severity.OK: 0,
             Severity.INFO: 1,
@@ -973,12 +1020,11 @@ class MainWindow(QMainWindow):
             Severity.RESTORE_NEEDED: 3,
             Severity.CRITICAL: 4,
         }
-        severity = Severity.OK
-        for item in software:
-            item_severity = cls._severity_from_software_state(item.state)
-            if rank[item_severity] > rank[severity]:
-                severity = item_severity
-        return severity
+        worst = Severity.OK
+        for severity in severities:
+            if rank[severity] > rank[worst]:
+                worst = severity
+        return worst
 
     @staticmethod
     def _clear_layout(layout) -> None:
