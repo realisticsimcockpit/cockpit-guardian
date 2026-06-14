@@ -60,6 +60,10 @@ INTEGRATION_NOTICES: tuple[IntegrationNotice, ...] = (
         "SimHub's Custom Serial Devices plugin must be enabled and configured. It does not send a predefined protocol, start byte, or terminator by default.",
     ),
     IntegrationNotice(
+        "SimHub ShakeIt Bass Shakers",
+        "Bass-shaker validation must confirm that ShakeIt has an enabled sound output and that the assigned sound card still exists in Windows. SimHub running alone is not enough after a reinstall.",
+    ),
+    IntegrationNotice(
         "Arduino USB Serial",
         "Arduino boards with unique VID/PID can be identified by model. Boards using generic FTDI, CH340, or CP210x bridges may need serial number or stable USB location to avoid false matches.",
     ),

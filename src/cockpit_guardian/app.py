@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import sys
+from functools import lru_cache
 
 from PySide6.QtCore import Qt, QUrl
+from PySide6.QtGui import QFont, QFontDatabase
 from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
 
 try:
@@ -50,12 +52,22 @@ STARTUP_STATUS_TEXT = {
     },
 }
 
+SPLASH_WIDTH = 1448
+SPLASH_HEIGHT = 543
+RETRO_FONT_CANDIDATES = ("Consolas", "Courier New", "Menlo", "Monaco", "Courier")
+
+
+@lru_cache(maxsize=1)
+def retro_font_family() -> str:
+    available = set(QFontDatabase.families())
+    return next((family for family in RETRO_FONT_CANDIDATES if family in available), "Courier")
+
 
 class StartupSplash(QWidget):
     def __init__(self, language: str = "en") -> None:
         super().__init__(None, Qt.WindowType.FramelessWindowHint | Qt.WindowType.SplashScreen)
         self.setWindowTitle("Cockpit Guardian")
-        self.setFixedSize(905, 679)
+        self.setFixedSize(SPLASH_WIDTH, SPLASH_HEIGHT)
         self.setStyleSheet("background: #000000; color: #ffffff;")
         self._language = language if language in STARTUP_STATUS_TEXT else "en"
         self._asset_context = None
@@ -76,18 +88,17 @@ class StartupSplash(QWidget):
             self._player.setAudioOutput(self._audio)
             self._player.setVideoOutput(video)
             self._player.setSource(QUrl.fromLocalFile(str(path)))
-            if hasattr(self._player, "setLoops"):
-                self._player.setLoops(QMediaPlayer.Loops.Infinite)
+            self._player.mediaStatusChanged.connect(self._media_status_changed)
         else:
             fallback = QLabel("COCKPIT GUARDIAN")
             fallback.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            fallback.setStyleSheet("font-size: 28px; font-weight: 800; color: #ffffff;")
+            fallback.setFont(self._retro_font(22))
+            fallback.setStyleSheet("color: #ffffff; letter-spacing: 1px;")
             layout.addWidget(fallback)
         self.status_label = QLabel(self)
         self.status_label.setObjectName("StartupStatus")
-        self.status_label.setStyleSheet(
-            "color: #ffffff; background: transparent; font-size: 13px; font-weight: 700; letter-spacing: 0.5px;"
-        )
+        self.status_label.setFont(self._retro_font(13))
+        self.status_label.setStyleSheet("color: #ffffff; background: transparent; letter-spacing: 1.2px;")
         self.status_label.setText(self._status_text("start"))
         self.status_label.adjustSize()
         self._position_status_label()
@@ -109,16 +120,34 @@ class StartupSplash(QWidget):
         self._position_status_label()
         self.status_label.raise_()
 
+    def _media_status_changed(self, status) -> None:
+        if QMediaPlayer is None or self._player is None:
+            return
+        if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            self._player.pause()
+            duration = self._player.duration()
+            if duration > 0:
+                self._player.setPosition(max(0, duration - 40))
+            self.status_label.raise_()
+
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt override
         super().resizeEvent(event)
         self._position_status_label()
 
     def _position_status_label(self) -> None:
-        margin = 24
+        margin = 28
         self.status_label.move(margin, self.height() - self.status_label.height() - margin)
 
     def _status_text(self, key: str) -> str:
-        return STARTUP_STATUS_TEXT[self._language].get(key, STARTUP_STATUS_TEXT[self._language]["start"])
+        return STARTUP_STATUS_TEXT[self._language].get(key, STARTUP_STATUS_TEXT[self._language]["start"]).upper()
+
+    def _retro_font(self, point_size: int) -> QFont:
+        font = QFont(retro_font_family())
+        font.setStyleHint(QFont.StyleHint.TypeWriter)
+        font.setPointSize(point_size)
+        font.setBold(True)
+        font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 112)
+        return font
 
     def finish(self) -> None:
         if self._player:

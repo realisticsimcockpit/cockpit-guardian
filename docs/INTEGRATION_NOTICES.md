@@ -20,6 +20,34 @@ FFB clipping is treated as optional telemetry. Cockpit Guardian can show the
 value when an adapter/plugin provides it, but a missing SimHub signal must not
 block the cockpit check unless SimHub is marked as required in Settings.
 
+### ShakeIt Bass Shakers
+
+ShakeIt Bass Shakers can be validated, but the validation must not be a simple
+`SimHub is running` check. The reliable target is:
+
+- ShakeIt Bass Shakers enabled in SimHub.
+- At least one sound output enabled/assigned in ShakeIt.
+- The assigned sound output still exists as a Windows audio endpoint.
+
+This matters after a Windows reinstall because SimHub documents that ShakeIt
+sound-card mappings do not transfer automatically, even when effect profiles are
+preserved. Cockpit Guardian should therefore treat bass-shaker validation as
+`OK` only when the assigned ShakeIt audio output can be matched to a current
+Windows sound device. If the SimHub config format cannot be read safely, the app
+must show a warning such as `ShakeIt audio output to verify in SimHub` instead
+of silently passing the check.
+
+There is no stable public API documented for this exact ShakeIt sound-output
+assignment. The safe implementation path is:
+
+1. Locate the SimHub installation/user data.
+2. Read the ShakeIt output configuration/profile using a structured parser.
+3. Enumerate Windows audio endpoints.
+4. Match the saved ShakeIt output name/device ID to a current endpoint.
+
+Do not rely on private SimHub internals beyond the documented SDK examples unless
+the code handles schema changes and reports an explicit `to verify` status.
+
 ## Arduino
 
 Arduino boards can be identified through serial-port metadata such as COM port,
@@ -92,6 +120,12 @@ flag for the new Windows installation.
 
 - SimHub Custom Serial Devices wiki:
   https://github.com/SHWotever/SimHub/wiki/Custom-serial-devices
+- SimHub ShakeIt V3 Bass Shakers Audio Output Configuration:
+  https://github.com/SHWotever/SimHub/wiki/ShakeIt-V3-Bass-Shakers---Audio-Output-Configuration
+- SimHub Copy Configuration to Another Computer:
+  https://github.com/SHWotever/SimHub/wiki/Copy-Simhub-configuration-to-another-computer
+- SimHub Plugin and Extensions SDKs:
+  https://github.com/SHWotever/SimHub/wiki/Plugin-and-extensions-SDKs
 - pySerial list_ports documentation:
   https://pyserial.readthedocs.io/en/latest/tools.html
 - ESP-IDF ESP32 serial connection documentation:
