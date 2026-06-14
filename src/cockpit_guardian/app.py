@@ -52,8 +52,9 @@ STARTUP_STATUS_TEXT = {
     },
 }
 
-SPLASH_WIDTH = 1448
-SPLASH_HEIGHT = 543
+SPLASH_WIDTH = 1280
+SPLASH_HEIGHT = 542
+SPLASH_TEXT_COLOR = "#c8c8c8"
 RETRO_FONT_CANDIDATES = ("Consolas", "Courier New", "Menlo", "Monaco", "Courier")
 
 
@@ -68,7 +69,7 @@ class StartupSplash(QWidget):
         super().__init__(None, Qt.WindowType.FramelessWindowHint | Qt.WindowType.SplashScreen)
         self.setWindowTitle("Cockpit Guardian")
         self.setFixedSize(SPLASH_WIDTH, SPLASH_HEIGHT)
-        self.setStyleSheet("background: #000000; color: #ffffff;")
+        self.setStyleSheet(f"background: #000000; color: {SPLASH_TEXT_COLOR};")
         self._language = language if language in STARTUP_STATUS_TEXT else "en"
         self._asset_context = None
         self._player = None
@@ -92,13 +93,13 @@ class StartupSplash(QWidget):
         else:
             fallback = QLabel("COCKPIT GUARDIAN")
             fallback.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            fallback.setFont(self._retro_font(22))
-            fallback.setStyleSheet("color: #ffffff; letter-spacing: 1px;")
+            fallback.setFont(self._retro_font(11))
+            fallback.setStyleSheet(f"color: {SPLASH_TEXT_COLOR}; letter-spacing: 1px;")
             layout.addWidget(fallback)
         self.status_label = QLabel(self)
         self.status_label.setObjectName("StartupStatus")
-        self.status_label.setFont(self._retro_font(13))
-        self.status_label.setStyleSheet("color: #ffffff; background: transparent; letter-spacing: 1.2px;")
+        self.status_label.setFont(self._retro_font(7))
+        self.status_label.setStyleSheet(f"color: {SPLASH_TEXT_COLOR}; background: transparent; letter-spacing: 1.2px;")
         self.status_label.setText(self._status_text("start"))
         self.status_label.adjustSize()
         self._position_status_label()

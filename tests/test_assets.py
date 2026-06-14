@@ -30,4 +30,4 @@ def test_visual_assets_are_packaged():
 
 
 def test_startup_splash_window_size_matches_requested_design():
-    assert (SPLASH_WIDTH, SPLASH_HEIGHT) == (1448, 543)
+    assert (SPLASH_WIDTH, SPLASH_HEIGHT) == (1280, 542)
