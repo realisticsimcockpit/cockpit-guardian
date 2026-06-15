@@ -61,6 +61,7 @@ class CheckEngine:
                     if device.priority != Priority.IGNORED
                 ],
                 usb_health=usb_health,
+                joystick_order=self.joystick_manager.compare([], current_order),
                 software=[item for item in software if item.state != SoftwareState.NOT_DETECTED or item.required],
                 telemetry=telemetry,
                 issues=["No saved configuration. Use Save Configuration first."],

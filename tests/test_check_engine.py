@@ -64,6 +64,28 @@ def _engine(devices, software=None, telemetry=None):
 
 
 class CheckEngineTests(unittest.TestCase):
+    def test_check_without_snapshot_reports_current_joystick_order(self):
+        wheel = CockpitDevice(
+            id="wheel",
+            display_name="Wheelbase",
+            kind=DeviceKind.WHEEL,
+            bus=DeviceBus.HID,
+            hid=HidIdentity(name="Wheelbase", vid="1234", pid="5678", joystick_order=2),
+        )
+        pedals = CockpitDevice(
+            id="pedals",
+            display_name="Pedals",
+            kind=DeviceKind.PEDALS,
+            bus=DeviceBus.HID,
+            hid=HidIdentity(name="Pedals", vid="8765", pid="4321", joystick_order=1),
+        )
+
+        report = _engine([wheel, pedals]).run_check(None)
+
+        self.assertEqual(report.joystick_order.current, ["Pedals", "Wheelbase"])
+        self.assertEqual(report.joystick_order.expected, [])
+        self.assertTrue(report.joystick_order.ok)
+
     def test_check_reports_com_restore_needed(self):
         expected = CockpitDevice(
             id="ddu",

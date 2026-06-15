@@ -194,9 +194,9 @@ DASHBOARD_TEXT = {
         "export": "Exporter",
         "import": "Importer",
         "device_headers": ["Périphérique", "Rôle", "Statut", "USB"],
-        "joystick_order": "Ordre contrôleurs",
-        "joystick_order_hint": "Glisser-deposer pour reordonner",
-        "joystick_headers": ["#", "Contrôleur", "USB"],
+        "joystick_order": "Joystick Order",
+        "joystick_order_hint": "Drag & drop to reorder",
+        "joystick_headers": ["#", "Joystick", "USB"],
         "usb_health": "USB",
         "quick_log": "Journal rapide",
         "no_quick_log": "Aucun événement récent",
@@ -229,7 +229,7 @@ DASHBOARD_TEXT = {
             "Prolific PL2303 USB serial bridge": "Prolific PL2303",
             "Espressif USB JTAG/serial bridge": "Espressif USB JTAG/série",
         },
-        "tabs": ["Tableau", "Santé USB", "Journaux", "Réglages", "Avancé"],
+        "tabs": ["Dashboard", "USB Health", "Logs", "Settings", "Advanced"],
     },
 }
 
@@ -672,6 +672,7 @@ class MainWindow(QMainWindow):
         usb_status_layout.addWidget(self.usb_status_label)
         usb_status_layout.addWidget(self.usb_status_icon)
         usb_status_layout.addStretch(1)
+        self.usb_status_row.setVisible(False)
         logo_layout.addWidget(self.usb_status_row)
         logo_layout.addStretch(1)
         header_layout.addWidget(logo_block, 1, Qt.AlignmentFlag.AlignTop)
@@ -931,8 +932,8 @@ class MainWindow(QMainWindow):
         icon.setObjectName("PanelTitleIcon")
         icon.setVisible(show_icon)
         title_layout.addWidget(label)
-        title_layout.addWidget(subtitle_label)
         title_layout.addWidget(icon)
+        title_layout.addWidget(subtitle_label)
         title_layout.addStretch(1)
         layout.addLayout(title_layout)
         layout.addWidget(child)
@@ -1302,7 +1303,7 @@ class MainWindow(QMainWindow):
             self._add_checklist_row(self.summary_checklist_layout, index, label, severity)
 
     def _update_status_icons(self, report: CheckReport) -> None:
-        self._set_icon_label(self.usb_status_icon, report.usb_health.severity)
+        self.usb_status_row.setVisible(False)
         self._set_icon_label(self.com_ports_panel_icon, self._serial_summary_severity(report))
         self._set_icon_label(self.joystick_panel_icon, Severity.OK if report.joystick_order.ok else Severity.WARNING)
 
