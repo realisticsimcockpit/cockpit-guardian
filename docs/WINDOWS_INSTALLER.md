@@ -53,7 +53,7 @@ need administrator rights should request elevation only for those actions rather
 than forcing the entire UI to run elevated.
 
 The optional startup task creates a shortcut in the current user's Startup folder.
-The installer publisher is `Realistic Sim Cockpit`, and support/update URLs point
+The installer publisher is `Realistic SimCockpit / Julien Merelle`, and support/update URLs point
 to the GitHub repository.
 
 ## Sources Checked

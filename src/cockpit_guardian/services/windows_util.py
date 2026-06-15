@@ -54,16 +54,23 @@ def run_powershell_json(script: str, timeout: int = 12) -> list[dict[str, Any]]:
     command = [
         "powershell",
         "-NoProfile",
+        "-NonInteractive",
         "-ExecutionPolicy",
         "Bypass",
         "-Command",
-        f"{script} | ConvertTo-Json -Depth 5",
+        (
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
+            "$OutputEncoding = [System.Text.Encoding]::UTF8; "
+            f"{script} | ConvertTo-Json -Depth 5"
+        ),
     ]
     try:
         completed = subprocess.run(
             command,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=timeout,
             check=False,
             **hidden_subprocess_kwargs(),

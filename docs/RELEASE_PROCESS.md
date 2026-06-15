@@ -14,7 +14,7 @@ The installer script reads the Python package version and passes it to Inno
 Setup, so the installer filename follows the package version.
 
 Publisher, repository URLs, license, GitHub templates, and release automation are
-already filled in for `Realistic Sim Cockpit`.
+already filled in for `Realistic SimCockpit / Julien Merelle`.
 
 ## Local Release Check
 

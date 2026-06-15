@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass
 
@@ -7,14 +8,18 @@ from ..models import Severity, UsbEvent, UsbHealthSummary, utc_now_iso
 from .windows_util import run_powershell_json
 
 
-USB_KEYWORDS = [
-    "usb",
-    "device not recognized",
-    "enumeration",
-    "reset",
-    "disconnect",
-    "timeout",
-    "hub",
+USB_MESSAGE_PATTERNS = [
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in [
+        r"\busb\b",
+        r"device not recognized",
+        r"enumerat",
+        r"\breset\b",
+        r"disconnect",
+        r"timeout",
+        r"\bhub\b",
+        r"concentrateur",
+    ]
 ]
 
 
@@ -31,7 +36,7 @@ class UsbHealthMonitor:
         events: list[UsbEvent] = []
         for row in rows:
             message = str(row.get("Message") or "")
-            if not message or not any(keyword in message.lower() for keyword in USB_KEYWORDS):
+            if not self._is_usb_message(message):
                 continue
             severity = self._severity(message)
             events.append(
@@ -64,10 +69,14 @@ class UsbHealthMonitor:
     def _read_windows_events(self) -> list[dict]:
         script = (
             "Get-WinEvent -LogName System -MaxEvents 200 -ErrorAction SilentlyContinue | "
-            "Where-Object { $_.ProviderName -match 'USB|Kernel-PnP|UserPnp' -or $_.Message -match 'USB|device not recognized|enumeration|hub' } | "
-            "Select-Object TimeCreated, ProviderName, Id, LevelDisplayName, Message"
+            "Where-Object { $_.Message -match '(?i)\\bUSB\\b|device not recognized|enumerat|\\breset\\b|disconnect|timeout|\\bhub\\b|concentrateur' } | "
+            "Select-Object @{Name='TimeCreated';Expression={$_.TimeCreated.ToString('o')}}, ProviderName, Id, LevelDisplayName, Message"
         )
         return run_powershell_json(script, timeout=15)
+
+    @staticmethod
+    def _is_usb_message(message: str) -> bool:
+        return bool(message) and any(pattern.search(message) for pattern in USB_MESSAGE_PATTERNS)
 
     @staticmethod
     def _severity(message: str) -> Severity:

@@ -24,8 +24,8 @@ from .services.com_manager import ComPortManager, UsbRescanService
 from .services.device_detector import DeviceDetector
 from .services.joystick_manager import JoystickOrderManager
 from .services.restore_engine import RestoreEngine
-from .services.simhub import SimHubIntegration
 from .services.software_detector import SoftwareDetector
+from .services.telemetry import TelemetryService
 from .services.usb_health import UsbHealthMonitor
 from .ui.assets import asset_icon, asset_path
 from .ui.main_window import MainWindow
@@ -182,7 +182,7 @@ def build_controller(status_callback=None) -> AppController:
         joystick_manager=joystick_manager,
         usb_health=UsbHealthMonitor(),
         software_detector=software_detector,
-        simhub=SimHubIntegration(),
+        telemetry_service=TelemetryService(),
         logger=logger,
     )
     restore_engine = RestoreEngine(

@@ -18,8 +18,8 @@ from .models import (
 from .services.integration_notices import is_generic_usb_serial_bridge, serial_identity_notice
 from .services.device_detector import DeviceDetector
 from .services.joystick_manager import JoystickOrderManager
-from .services.simhub import SimHubIntegration
 from .services.software_detector import SoftwareDetector
+from .services.telemetry import TelemetryService
 from .services.usb_health import UsbHealthMonitor
 
 
@@ -29,7 +29,7 @@ class CheckEngine:
     joystick_manager: JoystickOrderManager
     usb_health: UsbHealthMonitor
     software_detector: SoftwareDetector
-    simhub: SimHubIntegration
+    telemetry_service: TelemetryService
     logger: logging.Logger
 
     def run_check(
@@ -49,7 +49,7 @@ class CheckEngine:
         )
         usb_health = self.usb_health.check(cache_ttl_seconds=usb_health_scan_interval_seconds)
         current_order = self.joystick_manager.read_current_order(current_devices)
-        simhub_status = self.simhub.get_status(software)
+        telemetry = self.telemetry_service.get_status(software)
 
         if snapshot is None:
             report = CheckReport(
@@ -62,6 +62,7 @@ class CheckEngine:
                 ],
                 usb_health=usb_health,
                 software=[item for item in software if item.state != SoftwareState.NOT_DETECTED or item.required],
+                telemetry=telemetry,
                 issues=["No saved configuration. Use Save Configuration first."],
                 snapshot_loaded=False,
             )
@@ -70,7 +71,7 @@ class CheckEngine:
 
         device_checks = self._compare_devices(snapshot.devices, current_devices)
         software = self._merge_snapshot_software(snapshot, software)
-        self._apply_simhub_to_wheel(device_checks, simhub_status, simhub_required, ffb_clipping_threshold)
+        self._apply_telemetry_to_wheel(device_checks, telemetry, ffb_clipping_threshold)
         joystick_result = self.joystick_manager.compare(snapshot.joystick_order, current_order)
         issues = [check.message for check in device_checks if check.severity in {Severity.WARNING, Severity.RESTORE_NEEDED, Severity.CRITICAL}]
         if not joystick_result.ok:
@@ -95,6 +96,7 @@ class CheckEngine:
                 or item.required
                 or any(saved.name == item.name for saved in snapshot.software)
             ],
+            telemetry=telemetry,
             issues=issues,
             snapshot_loaded=True,
         )
@@ -213,25 +215,22 @@ class CheckEngine:
         return None
 
     @staticmethod
-    def _apply_simhub_to_wheel(
+    def _apply_telemetry_to_wheel(
         device_checks: list[DeviceCheck],
-        simhub_status,
-        simhub_required: bool,
+        telemetry_status,
         ffb_clipping_threshold: float,
     ) -> None:
         wheel = next((check for check in device_checks if check.expected and check.expected.kind.value == "wheel"), None)
         if not wheel:
             return
-        if not simhub_status.available:
-            if simhub_required and wheel.severity == Severity.OK:
-                wheel.severity = Severity.WARNING
-                wheel.message = f"{wheel.message} - SimHub not available"
-            wheel.detail = "SimHub not available"
+        if not telemetry_status.available:
+            wheel.detail = telemetry_status.message
             return
-        if simhub_status.ffb_clipping_percent is not None and simhub_status.ffb_clipping_percent >= ffb_clipping_threshold:
-            wheel.ffb_clipping_percent = simhub_status.ffb_clipping_percent
+        wheel.detail = telemetry_status.message
+        if telemetry_status.ffb_clipping_percent is not None and telemetry_status.ffb_clipping_percent >= ffb_clipping_threshold:
+            wheel.ffb_clipping_percent = telemetry_status.ffb_clipping_percent
             wheel.severity = Severity.WARNING if wheel.severity == Severity.OK else wheel.severity
-            wheel.message = f"{wheel.message} - FFB clipping {simhub_status.ffb_clipping_percent:.0f}% - Reduce in-game FFB gain"
+            wheel.message = f"{wheel.message} - FFB clipping {telemetry_status.ffb_clipping_percent:.0f}% from {telemetry_status.source} - Reduce in-game FFB gain"
 
     @staticmethod
     def _global_status(device_checks: list[DeviceCheck], joystick_ok: bool, usb_severity: Severity, software) -> GlobalStatus:

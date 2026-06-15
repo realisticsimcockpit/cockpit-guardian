@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 
 from ..config_manager import ConfigManager
 from ..models import CheckReport, RestoreAction, RestoreReport, Severity, Snapshot, utc_now_iso
@@ -32,7 +33,8 @@ class RestoreEngine:
                 self.logger.info("USB rescan action: %s", message)
 
         if snapshot and report.joystick_order.restore_available:
-            ok, message, requires_admin = self.joystick_manager.restore(snapshot.joystick_order, backup)
+            current_devices = [check.detected for check in report.device_checks if check.detected]
+            ok, message, requires_admin = self.joystick_manager.restore(snapshot.joystick_order, backup, current_devices)
             actions.append(RestoreAction("Restore joystick order", ok, message, str(backup), requires_admin))
             self.logger.info("Joystick restore action: %s", message)
 
@@ -47,10 +49,13 @@ class RestoreEngine:
         backup = self.config.latest_backup()
         if backup is None:
             return RestoreAction("Rollback Last Restore", False, "No restore backup found.")
+        joystick_ok, joystick_message = self.joystick_manager.rollback_registry_backup(Path(backup))
         try:
             self.config.rollback_backup(backup)
         except Exception as exc:
             self.logger.exception("Rollback failed")
             return RestoreAction("Rollback Last Restore", False, f"Rollback failed: {exc}", str(backup))
         self.logger.info("Rollback completed from %s", backup)
-        return RestoreAction("Rollback Last Restore", True, f"Rolled back configuration from {backup}.", str(backup))
+        if not joystick_ok:
+            return RestoreAction("Rollback Last Restore", False, f"Configuration rolled back from {backup}, but joystick rollback failed: {joystick_message}", str(backup))
+        return RestoreAction("Rollback Last Restore", True, f"Rolled back configuration from {backup}. {joystick_message}", str(backup))

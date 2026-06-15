@@ -11,13 +11,15 @@ class PerformanceCacheTests(unittest.TestCase):
         rows = [{"FriendlyName": "Simagic Alpha", "InstanceId": "HID\\VID_0483&PID_A355\\1"}]
         detector = DeviceDetector()
 
-        with patch("cockpit_guardian.services.device_detector.run_powershell_json", return_value=rows) as powershell:
+        with patch.object(DeviceDetector, "_read_winmm_joysticks", return_value=[]), patch(
+            "cockpit_guardian.services.device_detector.run_powershell_json", return_value=rows
+        ) as powershell:
             first = detector.detect_hid_devices(cache_ttl_seconds=60)
             second = detector.detect_hid_devices(cache_ttl_seconds=60)
 
         self.assertEqual(len(first), 1)
         self.assertEqual(len(second), 1)
-        self.assertEqual(powershell.call_count, 1)
+        self.assertEqual(powershell.call_count, 2)
 
     def test_installed_software_uses_cache(self):
         rows = [{"DisplayName": "SimHub", "InstallLocation": "C:\\SimHub"}]

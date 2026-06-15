@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import platform
+import re
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -55,6 +56,11 @@ SOFTWARE_CATALOG: dict[str, dict[str, object]] = {
     },
     "OpenXR Companion": {"process": ["OpenXR-Companion"], "display": ["OpenXR Companion"]},
     "Stream Deck": {"process": ["StreamDeck"], "display": ["Stream Deck"]},
+    "iRacing": {"process": ["iRacingSim64DX11", "iRacingUI"], "display": ["iRacing"]},
+    "Assetto Corsa": {"process": ["acs", "AssettoCorsa"], "display": ["Assetto Corsa"]},
+    "Assetto Corsa Competizione": {"process": ["AC2-Win64-Shipping", "AssettoCorsaCompetizione"], "display": ["Assetto Corsa Competizione"]},
+    "Le Mans Ultimate": {"process": ["Le Mans Ultimate", "LMU"], "display": ["Le Mans Ultimate"]},
+    "rFactor 2": {"process": ["rFactor2", "rFactor2 Dedicated"], "display": ["rFactor 2"]},
 }
 
 
@@ -72,11 +78,12 @@ class SoftwareDetector:
             process_names = [str(item).lower() for item in spec["process"]]
             display_names = [str(item).lower() for item in spec["display"]]
             is_running = any(proc in running for proc in process_names)
-            installed_path = self._match_installed(display_names, installed)
+            installed_match = self._match_installed(display_names, installed)
+            installed_path = installed_match or None
             is_required = name in required
             if is_running:
                 state = SoftwareState.RUNNING
-            elif installed_path:
+            elif installed_match is not None:
                 state = SoftwareState.INSTALLED_CLOSED
             elif is_required:
                 state = SoftwareState.REQUIRED_MISSING
@@ -140,7 +147,40 @@ class SoftwareDetector:
 
     @staticmethod
     def _match_installed(display_names: list[str], installed: dict[str, str]) -> str | None:
+        best_score = -1
+        best_path: str | None = None
         for installed_name, path in installed.items():
-            if any(display_name in installed_name for display_name in display_names):
-                return path or None
-        return None
+            for display_name in display_names:
+                score = SoftwareDetector._installed_match_score(display_name, installed_name)
+                if score > best_score:
+                    best_score = score
+                    best_path = path
+        return best_path if best_score >= 0 else None
+
+    @staticmethod
+    def _installed_match_score(display_name: str, installed_name: str) -> int:
+        display = display_name.lower().strip()
+        installed = installed_name.lower().strip()
+        normalized_display = SoftwareDetector._normalize_name(display)
+        normalized_installed = SoftwareDetector._normalize_name(installed)
+        if not display or not installed:
+            return -1
+        if installed == display or normalized_installed == normalized_display:
+            score = 100
+        elif re.search(rf"\b{re.escape(display)}\b", installed):
+            score = 85
+        elif installed.startswith(display) or normalized_installed.startswith(normalized_display):
+            score = 70
+        elif display in installed or normalized_display in normalized_installed:
+            score = 50
+        else:
+            return -1
+        if any(token in installed for token in ["driver", "screen", "plugin", "add-on", "addon", "sdk"]):
+            score -= 35
+        if " version " in installed or installed.startswith(f"{display} version"):
+            score += 10
+        return score
+
+    @staticmethod
+    def _normalize_name(value: str) -> str:
+        return "".join(character for character in value.lower() if character.isalnum())

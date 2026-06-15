@@ -165,6 +165,16 @@ class SoftwareStatus:
 
 
 @dataclass(slots=True)
+class TelemetryStatus:
+    source: str = "Telemetry"
+    available: bool = False
+    message: str = "Telemetry not available"
+    ffb_clipping_percent: float | None = None
+    ffb_signal_percent: float | None = None
+    raw_value: float | None = None
+
+
+@dataclass(slots=True)
 class Settings:
     profile_name: str = "Default Cockpit"
     ffb_clipping_threshold: float = 10.0
@@ -198,6 +208,7 @@ class CheckReport:
     joystick_order: JoystickOrderResult = field(default_factory=JoystickOrderResult)
     usb_health: UsbHealthSummary = field(default_factory=UsbHealthSummary)
     software: list[SoftwareStatus] = field(default_factory=list)
+    telemetry: TelemetryStatus = field(default_factory=TelemetryStatus)
     issues: list[str] = field(default_factory=list)
     snapshot_loaded: bool = False
 

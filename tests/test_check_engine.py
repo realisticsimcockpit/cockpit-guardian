@@ -12,10 +12,10 @@ from cockpit_guardian.models import (
     Snapshot,
     SoftwareState,
     SoftwareStatus,
+    TelemetryStatus,
     utc_now_iso,
 )
 from cockpit_guardian.services.joystick_manager import JoystickOrderManager
-from cockpit_guardian.services.simhub import SimHubIntegration
 from cockpit_guardian.services.usb_health import UsbHealthMonitor
 
 
@@ -44,13 +44,21 @@ class FakeUsb(UsbHealthMonitor):
         return UsbHealthSummary()
 
 
-def _engine(devices, software=None):
+class FakeTelemetry:
+    def __init__(self, status=None):
+        self.status = status or TelemetryStatus()
+
+    def get_status(self, software=None):
+        return self.status
+
+
+def _engine(devices, software=None, telemetry=None):
     return CheckEngine(
         detector=FakeDetector(devices),
         joystick_manager=JoystickOrderManager(),
         usb_health=FakeUsb(),
         software_detector=FakeSoftware(software),
-        simhub=SimHubIntegration(),
+        telemetry_service=FakeTelemetry(telemetry),
         logger=logging.getLogger("test"),
     )
 
@@ -177,6 +185,25 @@ class CheckEngineTests(unittest.TestCase):
 
         self.assertEqual(report.global_status, GlobalStatus.RESTORE_NEEDED)
         self.assertIn("expected COM5", report.device_checks[0].message)
+
+    def test_telemetry_clipping_warns_on_wheel(self):
+        wheel = CockpitDevice(
+            id="wheel",
+            display_name="Wheelbase",
+            kind=DeviceKind.WHEEL,
+            bus=DeviceBus.HID,
+            hid=HidIdentity(name="Wheelbase", vid="1234", pid="5678", joystick_order=1),
+        )
+        snapshot = Snapshot(utc_now_iso(), "Rig", "test", [wheel], [], ["Wheelbase"])
+
+        report = _engine(
+            [wheel],
+            telemetry=TelemetryStatus(source="iRacing", available=True, ffb_clipping_percent=18.0, message="FFB clipping 18%"),
+        ).run_check(snapshot, ffb_clipping_threshold=10.0)
+
+        self.assertEqual(report.global_status, GlobalStatus.WARNING)
+        self.assertEqual(report.telemetry.source, "iRacing")
+        self.assertEqual(report.device_checks[0].ffb_clipping_percent, 18.0)
 
 
 if __name__ == "__main__":

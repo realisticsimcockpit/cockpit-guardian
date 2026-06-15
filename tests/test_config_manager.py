@@ -115,6 +115,28 @@ class ConfigManagerTests(unittest.TestCase):
 
             self.assertEqual(config.load_snapshot().profile_name, "Current Rig")
 
+    def test_corrupt_settings_are_quarantined_and_defaults_are_restored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = ConfigManager(AppPaths(tmp))
+            config.paths.settings.write_text("{bad json", encoding="utf-8")
+
+            settings = config.load_settings()
+
+            self.assertEqual(settings.profile_name, "Default Cockpit")
+            self.assertTrue(config.paths.settings.exists())
+            self.assertTrue(list(config.paths.root.glob("settings.json.corrupt-*")))
+
+    def test_corrupt_snapshot_is_quarantined_and_ignored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = ConfigManager(AppPaths(tmp))
+            config.paths.snapshot.write_text("{bad json", encoding="utf-8")
+
+            snapshot = config.load_snapshot()
+
+            self.assertIsNone(snapshot)
+            self.assertFalse(config.paths.snapshot.exists())
+            self.assertTrue(list(config.paths.root.glob("snapshot.json.corrupt-*")))
+
 
 if __name__ == "__main__":
     unittest.main()

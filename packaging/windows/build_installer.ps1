@@ -44,7 +44,7 @@ $Python = Resolve-Path ".venv\Scripts\python.exe"
 & $Python -m pip install --upgrade pip
 & $Python -m pip install -e ".[windows,build]"
 $Version = (& $Python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])").Trim()
-$Publisher = "Realistic Sim Cockpit"
+$Publisher = "Realistic SimCockpit / Julien Merelle"
 $ProductName = "Cockpit Guardian"
 Write-Host "Building $ProductName $Version"
 

@@ -10,6 +10,7 @@ GENERIC_USB_SERIAL_BRIDGES: dict[tuple[str, str], str] = {
     ("10C4", "EA60"): "Silicon Labs CP210x USB-to-UART bridge",
     ("1A86", "7523"): "WCH CH340 USB serial bridge",
     ("1A86", "5523"): "WCH CH341 USB serial bridge",
+    ("1A86", "55D3"): "WCH CH343 USB serial bridge",
     ("1A86", "55D4"): "WCH CH9102 USB serial bridge",
     ("303A", "1001"): "Espressif USB JTAG/serial bridge",
 }

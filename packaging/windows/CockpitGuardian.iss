@@ -2,7 +2,7 @@
 #ifndef MyAppVersion
 #define MyAppVersion "0.1.0"
 #endif
-#define MyAppPublisher "Realistic Sim Cockpit"
+#define MyAppPublisher "Realistic SimCockpit / Julien Merelle"
 #define MyAppExeName "CockpitGuardian.exe"
 #define MyAppURL "https://github.com/realisticsimcockpit/cockpit-guardian"
 #ifndef SourceDir

@@ -29,6 +29,15 @@ class UsbTopologyTests(unittest.TestCase):
         self.assertIsNone(info.usb_generation)
         self.assertEqual(info.confidence, "low")
 
+    def test_generic_ch343_bridge_reports_unknown_speed(self):
+        detector = UsbTopologyDetector()
+
+        info = detector.infer_connection(name="USB-Enhanced-SERIAL CH343", vid="1A86", pid="55D3")
+
+        self.assertEqual(info.label, "USB serial bridge")
+        self.assertEqual(info.source, "WCH CH343 USB serial bridge")
+        self.assertEqual(info.confidence, "low")
+
 
 if __name__ == "__main__":
     unittest.main()

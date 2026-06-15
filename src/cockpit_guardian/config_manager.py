@@ -23,8 +23,14 @@ class ConfigManager:
             settings = Settings()
             self.save_settings(settings)
             return settings
-        data = self._read_json(self.paths.settings)
-        return settings_from_dict(data)
+        try:
+            data = self._read_json(self.paths.settings)
+            return settings_from_dict(data)
+        except Exception:
+            self._quarantine_invalid_file(self.paths.settings)
+            settings = Settings()
+            self.save_settings(settings)
+            return settings
 
     def save_settings(self, settings: Settings) -> None:
         self._write_json(self.paths.settings, to_plain(settings))
@@ -32,7 +38,11 @@ class ConfigManager:
     def load_snapshot(self) -> Snapshot | None:
         if not self.paths.snapshot.exists():
             return None
-        return snapshot_from_dict(self._read_json(self.paths.snapshot))
+        try:
+            return snapshot_from_dict(self._read_json(self.paths.snapshot))
+        except Exception:
+            self._quarantine_invalid_file(self.paths.snapshot)
+            return None
 
     def save_snapshot(self, snapshot: Snapshot) -> None:
         self._write_json(self.paths.snapshot, to_plain(snapshot))
@@ -64,9 +74,15 @@ class ConfigManager:
             "payload": payload or {},
         }
         if self.paths.snapshot.exists():
-            data["snapshot"] = self._read_json(self.paths.snapshot)
+            try:
+                data["snapshot"] = self._read_json(self.paths.snapshot)
+            except Exception:
+                data["snapshot"] = None
         if self.paths.settings.exists():
-            data["settings"] = self._read_json(self.paths.settings)
+            try:
+                data["settings"] = self._read_json(self.paths.settings)
+            except Exception:
+                data["settings"] = None
         self._write_json(backup_path, data)
         return backup_path
 
@@ -140,3 +156,14 @@ class ConfigManager:
     def _write_json(path: Path, data: dict[str, Any]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    @staticmethod
+    def _quarantine_invalid_file(path: Path) -> Path:
+        stamp = utc_now_iso().replace(":", "-")
+        target = path.with_name(f"{path.name}.corrupt-{stamp}")
+        suffix = 1
+        while target.exists():
+            suffix += 1
+            target = path.with_name(f"{path.name}.corrupt-{stamp}-{suffix}")
+        path.replace(target)
+        return target

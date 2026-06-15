@@ -3,12 +3,15 @@ from __future__ import annotations
 import hashlib
 import os
 import time
+import ctypes
 from dataclasses import dataclass, field
+from ctypes import wintypes
+from typing import Any
 
 from ..models import CockpitDevice, DeviceBus, DeviceKind, HidIdentity, SerialIdentity, UsbConnectionInfo
 from .integration_notices import ARDUINO_VIDS, ESPRESSIF_VIDS, generic_usb_serial_bridge_name, normalize_usb_id
 from .usb_topology import UsbTopologyDetector
-from .windows_util import parse_vid_pid, run_powershell_json
+from .windows_util import is_windows, parse_vid_pid, run_powershell_json
 
 
 def _stable_id(*parts: object) -> str:
@@ -19,11 +22,11 @@ def _stable_id(*parts: object) -> str:
 def _guess_kind(name: str | None, bus: DeviceBus, vid: str | None = None, pid: str | None = None) -> DeviceKind:
     normalized = (name or "").lower()
     checks = [
-        (DeviceKind.WHEEL, ["wheel", "wheelbase", "simagic", "moza", "fanatec", "simucube", "alpha"]),
+        (DeviceKind.WHEEL, ["wheel", "wheelbase", "simagic", "moza", "fanatec", "simucube", "alpha", "yoke"]),
         (DeviceKind.PEDALS, ["pedal", "heusinkveld", "p1000", "p2000", "clubsport"]),
-        (DeviceKind.SHIFTER, ["shifter", "seq", "h-pattern"]),
+        (DeviceKind.SHIFTER, ["shifter", "seq", "h-pattern", "throttle"]),
         (DeviceKind.HANDBRAKE, ["handbrake", "hand brake"]),
-        (DeviceKind.BUTTON_BOX, ["button", "stream deck", "box"]),
+        (DeviceKind.BUTTON_BOX, ["button", "stream deck", "box", "gt neo"]),
         (DeviceKind.DDU, ["ddu", "dash", "display"]),
         (DeviceKind.ARDUINO_SIMHUB, ["arduino", "simhub"]),
         (DeviceKind.WIND_SIMULATOR, ["wind", "fan"]),
@@ -75,6 +78,8 @@ class DeviceDetector:
         windows_metadata = self._windows_serial_metadata(cache_ttl_seconds=30) if include_windows_metadata else {}
         for port in list_ports.comports():
             metadata = windows_metadata.get(str(port.device).upper(), {})
+            if not self._is_usb_serial_port(port, metadata):
+                continue
             vid = f"{port.vid:04X}" if port.vid is not None else None
             pid = f"{port.pid:04X}" if port.pid is not None else None
             friendly = metadata.get("friendly_name") or port.description or port.name or port.device
@@ -105,16 +110,28 @@ class DeviceDetector:
         now = time.monotonic()
         if self._hid_cache and now - self._hid_cache_at <= max(0, cache_ttl_seconds):
             return list(self._hid_cache)
+        joystick_pnp_rows = self._windows_joystick_pnp_rows()
+        devices = self._detect_winmm_joysticks(joystick_pnp_rows)
+        known_instance_ids = {
+            device.hid.device_instance_id.upper()
+            for device in devices
+            if device.hid and device.hid.device_instance_id and not device.hid.device_instance_id.upper().startswith("WINMM\\")
+        }
         script = (
             "Get-PnpDevice -PresentOnly | "
-            "Where-Object { $_.Class -in @('HIDClass','USB','MEDIA') -and "
-            "($_.FriendlyName -match 'wheel|pedal|joystick|game|shifter|handbrake|button|simagic|moza|fanatec|simucube|ddu|arduino') } | "
+            "Where-Object { $_.Class -eq 'HIDClass' -and "
+            "($_.FriendlyName -match 'wheel|pedal|shifter|throttle|yoke|handbrake|button|stream deck|simagic|moza|fanatec|simucube|ddu|arduino') } | "
             "Select-Object FriendlyName, InstanceId, Manufacturer, Status, Class"
         )
         rows = run_powershell_json(script)
-        devices: list[CockpitDevice] = []
+        if not devices:
+            rows = joystick_pnp_rows + rows
         for index, row in enumerate(rows):
             instance_id = row.get("InstanceId")
+            if instance_id and str(instance_id).upper() in known_instance_ids:
+                continue
+            if devices and self._is_generic_game_controller_row(row):
+                continue
             name = row.get("FriendlyName") or row.get("Manufacturer") or "HID device"
             vid, pid = parse_vid_pid(instance_id)
             identity = HidIdentity(
@@ -133,9 +150,189 @@ class DeviceDetector:
                     hid=identity,
                 )
             )
+            if instance_id:
+                known_instance_ids.add(str(instance_id).upper())
+        devices = self._deduplicate_hid_display_names(devices)
         self._hid_cache = list(devices)
         self._hid_cache_at = now
         return devices
+
+    def _detect_winmm_joysticks(self, pnp_rows: list[dict[str, Any]] | None = None) -> list[CockpitDevice]:
+        rows = self._read_winmm_joysticks()
+        if not rows:
+            return []
+        pnp_by_vid_pid: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        vjoy_rows: list[dict[str, Any]] = []
+        for row in pnp_rows if pnp_rows is not None else self._windows_joystick_pnp_rows():
+            instance_id = str(row.get("InstanceId") or "")
+            vid, pid = parse_vid_pid(instance_id)
+            if vid and pid:
+                pnp_by_vid_pid.setdefault((vid, pid), []).append(row)
+            elif str(row.get("FriendlyName") or "").lower() == "vjoy device":
+                vjoy_rows.append(row)
+
+        devices: list[CockpitDevice] = []
+        for row in rows:
+            vid = normalize_usb_id(row.get("vid"))
+            pid = normalize_usb_id(row.get("pid"))
+            pnp_row = None
+            if vid and pid:
+                candidates = pnp_by_vid_pid.get((vid, pid), [])
+                if candidates:
+                    pnp_row = candidates.pop(0)
+            if pnp_row is None and vid == "1234" and pid == "BEAD" and vjoy_rows:
+                pnp_row = vjoy_rows.pop(0)
+
+            instance_id = str(pnp_row.get("InstanceId")) if pnp_row else None
+            if not instance_id:
+                id_part = f"VID_{vid or '0000'}&PID_{pid or '0000'}"
+                instance_id = f"WINMM\\{id_part}\\JOY{row['index']}"
+
+            name = self._joystick_oem_name(vid, pid) or row.get("name") or f"Joystick {row['index'] + 1}"
+            order = int(row["index"]) + 1
+            identity = HidIdentity(
+                name=name,
+                vid=vid,
+                pid=pid,
+                device_instance_id=instance_id,
+                joystick_order=order,
+            )
+            devices.append(
+                CockpitDevice(
+                    id=_stable_id("hid", instance_id, name, vid, pid),
+                    display_name=name,
+                    kind=_guess_kind(name, DeviceBus.HID, vid, pid),
+                    bus=DeviceBus.HID,
+                    hid=identity,
+                )
+            )
+        return devices
+
+    @staticmethod
+    def _read_winmm_joysticks() -> list[dict[str, Any]]:
+        if not is_windows():
+            return []
+        try:
+            winmm = ctypes.WinDLL("winmm")
+        except OSError:
+            return []
+
+        class JoyCapsW(ctypes.Structure):
+            _fields_ = [
+                ("wMid", wintypes.WORD),
+                ("wPid", wintypes.WORD),
+                ("szPname", wintypes.WCHAR * 32),
+                ("wXmin", wintypes.UINT),
+                ("wXmax", wintypes.UINT),
+                ("wYmin", wintypes.UINT),
+                ("wYmax", wintypes.UINT),
+                ("wZmin", wintypes.UINT),
+                ("wZmax", wintypes.UINT),
+                ("wNumButtons", wintypes.UINT),
+                ("wPeriodMin", wintypes.UINT),
+                ("wPeriodMax", wintypes.UINT),
+                ("wRmin", wintypes.UINT),
+                ("wRmax", wintypes.UINT),
+                ("wUmin", wintypes.UINT),
+                ("wUmax", wintypes.UINT),
+                ("wVmin", wintypes.UINT),
+                ("wVmax", wintypes.UINT),
+                ("wCaps", wintypes.UINT),
+                ("wMaxAxes", wintypes.UINT),
+                ("wNumAxes", wintypes.UINT),
+                ("wMaxButtons", wintypes.UINT),
+                ("szRegKey", wintypes.WCHAR * 32),
+                ("szOEMVxD", wintypes.WCHAR * 260),
+            ]
+
+        try:
+            joy_get_num_devs = winmm.joyGetNumDevs
+            joy_get_num_devs.restype = wintypes.UINT
+            joy_get_dev_caps = winmm.joyGetDevCapsW
+            joy_get_dev_caps.argtypes = [wintypes.UINT, ctypes.POINTER(JoyCapsW), wintypes.UINT]
+            joy_get_dev_caps.restype = wintypes.UINT
+        except AttributeError:
+            return []
+
+        devices: list[dict[str, Any]] = []
+        for index in range(int(joy_get_num_devs())):
+            caps = JoyCapsW()
+            if joy_get_dev_caps(index, ctypes.byref(caps), ctypes.sizeof(caps)) != 0:
+                continue
+            devices.append(
+                {
+                    "index": index,
+                    "name": caps.szPname.strip(),
+                    "vid": f"{int(caps.wMid):04X}" if caps.wMid else None,
+                    "pid": f"{int(caps.wPid):04X}" if caps.wPid else None,
+                }
+            )
+        return devices
+
+    @staticmethod
+    def _windows_joystick_pnp_rows() -> list[dict[str, Any]]:
+        script = (
+            "Get-PnpDevice -PresentOnly | "
+            "Where-Object { $_.Class -eq 'HIDClass' -and "
+            "($_.FriendlyName -match 'Contrôleur de jeu HID|Controleur de jeu HID|HID-compliant game controller|game controller|joystick|vJoy Device') } | "
+            "Select-Object FriendlyName, InstanceId, Manufacturer, Status, Class"
+        )
+        return run_powershell_json(script, timeout=10)
+
+    @staticmethod
+    def _joystick_oem_name(vid: str | None, pid: str | None) -> str | None:
+        normalized_vid = normalize_usb_id(vid)
+        normalized_pid = normalize_usb_id(pid)
+        if not normalized_vid or not normalized_pid or not is_windows():
+            return None
+        try:
+            import winreg
+        except ImportError:
+            return None
+        subkey = (
+            "System\\CurrentControlSet\\Control\\MediaProperties\\"
+            f"PrivateProperties\\Joystick\\OEM\\VID_{normalized_vid}&PID_{normalized_pid}"
+        )
+        for root in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+            try:
+                with winreg.OpenKey(root, subkey) as key:
+                    value, _ = winreg.QueryValueEx(key, "OEMName")
+                    return str(value) if value else None
+            except OSError:
+                continue
+        return None
+
+    @staticmethod
+    def _is_generic_game_controller_row(row: dict[str, Any]) -> bool:
+        name = str(row.get("FriendlyName") or "").lower()
+        return name in {"contrôleur de jeu hid", "controleur de jeu hid", "hid-compliant game controller", "game controller", "vjoy device"}
+
+    @staticmethod
+    def _deduplicate_hid_display_names(devices: list[CockpitDevice]) -> list[CockpitDevice]:
+        counts: dict[str, int] = {}
+        for device in devices:
+            counts[device.display_name] = counts.get(device.display_name, 0) + 1
+        seen: dict[str, int] = {}
+        for device in devices:
+            if counts.get(device.display_name, 0) <= 1 or not device.hid:
+                continue
+            seen[device.display_name] = seen.get(device.display_name, 0) + 1
+            suffix = DeviceDetector._short_instance_label(device.hid.device_instance_id) or f"Joy {device.hid.joystick_order}"
+            device.display_name = f"{device.display_name} ({suffix})"
+            device.hid.name = device.display_name
+        return devices
+
+    @staticmethod
+    def _short_instance_label(instance_id: str | None) -> str | None:
+        if not instance_id:
+            return None
+        tail = instance_id.rsplit("\\", 1)[-1]
+        parts = [part for part in tail.split("&") if part and part not in {"0", "0000"}]
+        if len(parts) >= 2 and parts[0].isdigit():
+            return parts[1][:12]
+        if parts:
+            return parts[0][:12]
+        return tail[:12] if tail else None
 
     def _windows_serial_metadata(self, cache_ttl_seconds: int = 30) -> dict[str, dict[str, str | None]]:
         now = time.monotonic()
@@ -162,6 +359,21 @@ class DeviceDetector:
         self._serial_metadata_cache = dict(metadata)
         self._serial_metadata_cache_at = now
         return metadata
+
+    @staticmethod
+    def _is_usb_serial_port(port: object, metadata: dict[str, str | None]) -> bool:
+        if getattr(port, "vid", None) is not None or getattr(port, "pid", None) is not None:
+            return True
+        text = " ".join(
+            str(item or "")
+            for item in [
+                getattr(port, "hwid", None),
+                getattr(port, "location", None),
+                metadata.get("device_instance_id"),
+                metadata.get("location_path"),
+            ]
+        ).upper()
+        return "USB" in text
 
     @staticmethod
     def _serial_from_instance_id(instance_id: str) -> str | None:

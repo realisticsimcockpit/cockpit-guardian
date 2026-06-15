@@ -131,6 +131,8 @@ DASHBOARD_TEXT = {
             "Silicon Labs CP210x USB-to-UART bridge": "Silicon Labs CP210x",
             "WCH CH340 USB serial bridge": "WCH CH340",
             "WCH CH341 USB serial bridge": "WCH CH341",
+            "WCH CH343 USB serial bridge": "WCH CH343",
+            "WCH CH9102 USB serial bridge": "WCH CH9102",
             "FTDI FT232 USB serial bridge": "FTDI FT232",
             "FTDI USB serial bridge": "FTDI",
             "Prolific PL2303 USB serial bridge": "Prolific PL2303",
@@ -218,6 +220,8 @@ DASHBOARD_TEXT = {
             "Silicon Labs CP210x USB-to-UART bridge": "Silicon Labs CP210x",
             "WCH CH340 USB serial bridge": "WCH CH340",
             "WCH CH341 USB serial bridge": "WCH CH341",
+            "WCH CH343 USB serial bridge": "WCH CH343",
+            "WCH CH9102 USB serial bridge": "WCH CH9102",
             "FTDI FT232 USB serial bridge": "FTDI FT232",
             "FTDI USB serial bridge": "FTDI",
             "Prolific PL2303 USB serial bridge": "Prolific PL2303",
@@ -1499,6 +1503,11 @@ class MainWindow(QMainWindow):
         for notice in INTEGRATION_NOTICES:
             notices.addChild(QTreeWidgetItem([notice.title, notice.body]))
         self.advanced_tree.addTopLevelItem(notices)
+        if self.controller.last_report:
+            telemetry = QTreeWidgetItem(["Telemetry", self.controller.last_report.telemetry.message])
+            for key, value in to_plain(self.controller.last_report.telemetry).items():
+                telemetry.addChild(QTreeWidgetItem([key, str(value)]))
+            self.advanced_tree.addTopLevelItem(telemetry)
         if snapshot:
             snap = QTreeWidgetItem(["Snapshot", snapshot.snapshot_date])
             snap.addChild(QTreeWidgetItem(["Profile", snapshot.profile_name]))

@@ -11,10 +11,10 @@ requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [
-  { name = "Realistic Sim Cockpit" },
+  { name = "Realistic SimCockpit / Julien Merelle" },
 ]
 maintainers = [
-  { name = "Realistic Sim Cockpit" },
+  { name = "Realistic SimCockpit / Julien Merelle" },
 ]
 keywords = [
   "simracing",
