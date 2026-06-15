@@ -100,6 +100,16 @@ class ConfigManagerTests(unittest.TestCase):
             self.assertEqual(data["schema"], "cockpit_guardian.config_backup.v1")
             self.assertIn("cloud", data["recommended_storage"].lower())
 
+    def test_device_catalog_is_created_for_user_edits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = ConfigManager(AppPaths(tmp))
+
+            catalog_path = config.ensure_device_catalog()
+            data = json.loads(catalog_path.read_text(encoding="utf-8"))
+
+            self.assertEqual(catalog_path.name, "device_catalog.json")
+            self.assertTrue(data["entries"])
+
     def test_invalid_config_backup_does_not_replace_current_snapshot(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = ConfigManager(AppPaths(tmp))

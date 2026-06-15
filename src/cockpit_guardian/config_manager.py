@@ -8,6 +8,7 @@ from typing import Any
 from . import __version__
 from .models import Settings, Snapshot, settings_from_dict, snapshot_from_dict, to_plain, utc_now_iso
 from .paths import AppPaths
+from .services.device_catalog import ensure_user_catalog
 
 
 CONFIG_BACKUP_SCHEMA = "cockpit_guardian.config_backup.v1"
@@ -34,6 +35,9 @@ class ConfigManager:
 
     def save_settings(self, settings: Settings) -> None:
         self._write_json(self.paths.settings, to_plain(settings))
+
+    def ensure_device_catalog(self) -> Path:
+        return ensure_user_catalog(self.paths.device_catalog)
 
     def load_snapshot(self) -> Snapshot | None:
         if not self.paths.snapshot.exists():

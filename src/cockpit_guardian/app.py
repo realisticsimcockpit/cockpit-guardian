@@ -5,7 +5,7 @@ from functools import lru_cache
 
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QFont, QFontDatabase
-from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QLabel, QStyleFactory, QVBoxLayout, QWidget
 
 try:
     from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
@@ -21,6 +21,7 @@ from .controller import AppController
 from .logging_service import configure_logging
 from .paths import AppPaths
 from .services.com_manager import ComPortManager, UsbRescanService
+from .services.device_catalog import DeviceCatalog
 from .services.device_detector import DeviceDetector
 from .services.joystick_manager import JoystickOrderManager
 from .services.restore_engine import RestoreEngine
@@ -171,9 +172,13 @@ def build_controller(status_callback=None) -> AppController:
     status("config")
     paths = AppPaths()
     config = ConfigManager(paths)
+    user_catalog = config.ensure_device_catalog()
     logger = configure_logging(paths)
     status("windows")
-    detector = DeviceDetector()
+    catalog = DeviceCatalog.from_file(user_catalog)
+    if not catalog.entries:
+        catalog = DeviceCatalog.load_default()
+    detector = DeviceDetector(_catalog=catalog)
     joystick_manager = JoystickOrderManager()
     status("software")
     software_detector = SoftwareDetector()
@@ -206,6 +211,9 @@ def build_controller(status_callback=None) -> AppController:
 
 def main() -> int:
     app = QApplication(sys.argv)
+    fusion = QStyleFactory.create("Fusion")
+    if fusion is not None:
+        app.setStyle(fusion)
     app.setApplicationName("Cockpit Guardian")
     app.setWindowIcon(asset_icon("app_icon_256.png"))
     app.setQuitOnLastWindowClosed(False)

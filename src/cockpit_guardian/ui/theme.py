@@ -61,6 +61,12 @@ def app_stylesheet(theme: str = "dark") -> str:
         QScrollBar::handle:vertical { background: rgba(148, 163, 184, 150); min-height: 22px; border-radius: 4px; }
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
         QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }
+        QMessageBox, QDialog { background: #050505; color: #f8fafc; }
+        QMessageBox QLabel, QDialog QLabel { color: #f8fafc; background: transparent; }
+        QMessageBox QPushButton, QDialog QPushButton {
+            background: rgba(0, 0, 0, 220); color: #f8fafc; border: 1px solid rgba(255, 255, 255, 110); border-radius: 5px; padding: 6px 14px;
+        }
+        QMessageBox QPushButton:hover, QDialog QPushButton:hover { background: rgba(25, 25, 25, 245); border-color: rgba(220, 38, 38, 220); }
         """
     return """
     QWidget { color: #e5e7eb; font-size: 11px; }
@@ -101,4 +107,10 @@ def app_stylesheet(theme: str = "dark") -> str:
     QScrollBar::handle:vertical { background: rgba(148, 163, 184, 150); min-height: 22px; border-radius: 4px; }
     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
     QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }
+    QMessageBox, QDialog { background: #050505; color: #f8fafc; }
+    QMessageBox QLabel, QDialog QLabel { color: #f8fafc; background: transparent; }
+    QMessageBox QPushButton, QDialog QPushButton {
+        background: rgba(0, 0, 0, 220); color: #f8fafc; border: 1px solid rgba(255, 255, 255, 110); border-radius: 5px; padding: 6px 14px;
+    }
+    QMessageBox QPushButton:hover, QDialog QPushButton:hover { background: rgba(25, 25, 25, 245); border-color: rgba(220, 38, 38, 220); }
     """

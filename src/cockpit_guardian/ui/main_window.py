@@ -70,7 +70,8 @@ DASHBOARD_TEXT = {
             Severity.CRITICAL: "Critical",
         },
         "device_kinds": {
-            DeviceKind.WHEEL: "Wheel",
+            DeviceKind.WHEEL: "Wheel base",
+            DeviceKind.STEERING_WHEEL: "Steering wheel",
             DeviceKind.PEDALS: "Pedals",
             DeviceKind.SHIFTER: "Shifter",
             DeviceKind.HANDBRAKE: "Handbrake",
@@ -82,6 +83,7 @@ DASHBOARD_TEXT = {
         },
         "checklist_device_kinds": {
             DeviceKind.WHEEL: "Wheel base",
+            DeviceKind.STEERING_WHEEL: "Steering wheel",
             DeviceKind.PEDALS: "Pedals",
             DeviceKind.SHIFTER: "Shifter",
             DeviceKind.HANDBRAKE: "Handbrake",
@@ -160,7 +162,8 @@ DASHBOARD_TEXT = {
             Severity.CRITICAL: "Critique",
         },
         "device_kinds": {
-            DeviceKind.WHEEL: "Volant",
+            DeviceKind.WHEEL: "Base volant",
+            DeviceKind.STEERING_WHEEL: "Volant",
             DeviceKind.PEDALS: "Pédales",
             DeviceKind.SHIFTER: "Boîte",
             DeviceKind.HANDBRAKE: "Frein à main",
@@ -172,6 +175,7 @@ DASHBOARD_TEXT = {
         },
         "checklist_device_kinds": {
             DeviceKind.WHEEL: "Base volant",
+            DeviceKind.STEERING_WHEEL: "Volant",
             DeviceKind.PEDALS: "Pédalier",
             DeviceKind.SHIFTER: "Boîte",
             DeviceKind.HANDBRAKE: "Frein à main",
@@ -1252,7 +1256,8 @@ class MainWindow(QMainWindow):
             row = self.joystick_table.rowCount()
             self.joystick_table.insertRow(row)
             device = devices_by_name.get(name.lower())
-            self.joystick_table.setItem(row, 0, self._table_item(str(index)))
+            windows_order = device.hid.joystick_order if device and device.hid and device.hid.joystick_order else index
+            self.joystick_table.setItem(row, 0, self._table_item(str(windows_order)))
             self.joystick_table.setItem(row, 1, self._table_item(name))
             self.joystick_table.setItem(row, 2, self._table_item(self._usb_summary(device)))
         if not order:

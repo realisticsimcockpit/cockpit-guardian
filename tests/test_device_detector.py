@@ -30,6 +30,17 @@ class DeviceDetectorTests(unittest.TestCase):
 
         self.assertEqual(kind, DeviceKind.ARDUINO_SIMHUB)
 
+    def test_product_catalog_distinguishes_wheelbase_from_steering_wheel(self):
+        wheelbase = _guess_kind("SIMAGIC Alpha EVO Wheelbase", DeviceBus.HID, "3670", "0500")
+        gt_neo = _guess_kind("SIMAGIC GT Neo", DeviceBus.HID)
+        pedals = _guess_kind("DIY_FFB_PEDAL_JOYSTICK", DeviceBus.HID, "303A", "8331")
+        yoke = _guess_kind("Saitek Pro Flight Yoke", DeviceBus.HID, "06A3", "0BAC")
+
+        self.assertEqual(wheelbase, DeviceKind.WHEEL)
+        self.assertEqual(gt_neo, DeviceKind.STEERING_WHEEL)
+        self.assertEqual(pedals, DeviceKind.PEDALS)
+        self.assertEqual(yoke, DeviceKind.OTHER)
+
     def test_legacy_non_usb_com_port_is_not_cockpit_serial(self):
         port = FakePort(hwid="ACPI\\PNP0501\\0")
 

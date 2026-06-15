@@ -9,6 +9,7 @@ from ctypes import wintypes
 from typing import Any
 
 from ..models import CockpitDevice, DeviceBus, DeviceKind, HidIdentity, SerialIdentity, UsbConnectionInfo
+from .device_catalog import DeviceCatalog
 from .integration_notices import ARDUINO_VIDS, ESPRESSIF_VIDS, generic_usb_serial_bridge_name, normalize_usb_id
 from .usb_topology import UsbTopologyDetector
 from .windows_util import is_windows, parse_vid_pid, run_powershell_json
@@ -19,10 +20,20 @@ def _stable_id(*parts: object) -> str:
     return hashlib.sha1(text.encode("utf-8")).hexdigest()[:16]
 
 
-def _guess_kind(name: str | None, bus: DeviceBus, vid: str | None = None, pid: str | None = None) -> DeviceKind:
+def _guess_kind(
+    name: str | None,
+    bus: DeviceBus,
+    vid: str | None = None,
+    pid: str | None = None,
+    catalog: DeviceCatalog | None = None,
+) -> DeviceKind:
+    match = (catalog or DeviceCatalog.load_default()).match(name, vid, pid)
+    if match is not None:
+        return match.kind
     normalized = (name or "").lower()
     checks = [
-        (DeviceKind.WHEEL, ["wheel", "wheelbase", "simagic", "moza", "fanatec", "simucube", "alpha", "yoke"]),
+        (DeviceKind.WHEEL, ["wheel base", "wheelbase", "simagic alpha", "moza r", "fanatec", "simucube", "asetek"]),
+        (DeviceKind.STEERING_WHEEL, ["steering wheel", "rim", "gt neo", "formula wheel"]),
         (DeviceKind.PEDALS, ["pedal", "heusinkveld", "p1000", "p2000", "clubsport"]),
         (DeviceKind.SHIFTER, ["shifter", "seq", "h-pattern", "throttle"]),
         (DeviceKind.HANDBRAKE, ["handbrake", "hand brake"]),
@@ -60,6 +71,7 @@ class DeviceDetector:
     _serial_metadata_cache: dict[str, dict[str, str | None]] = field(default_factory=dict)
     _serial_metadata_cache_at: float = 0.0
     _usb_topology: UsbTopologyDetector = field(default_factory=UsbTopologyDetector)
+    _catalog: DeviceCatalog = field(default_factory=DeviceCatalog.load_default)
 
     def detect_all(self, include_windows_metadata: bool = False, hid_cache_ttl_seconds: int = 5) -> list[CockpitDevice]:
         if os.environ.get("COCKPIT_GUARDIAN_MOCK") == "1":
@@ -99,7 +111,7 @@ class DeviceDetector:
                 CockpitDevice(
                     id=device_id,
                     display_name=friendly,
-                    kind=_guess_kind(friendly, DeviceBus.SERIAL, vid, pid),
+                    kind=_guess_kind(friendly, DeviceBus.SERIAL, vid, pid, self._catalog),
                     bus=DeviceBus.SERIAL,
                     serial=identity,
                 )
@@ -134,6 +146,9 @@ class DeviceDetector:
                 continue
             name = row.get("FriendlyName") or row.get("Manufacturer") or "HID device"
             vid, pid = parse_vid_pid(instance_id)
+            catalog_match = self._catalog.match(name, vid, pid)
+            if catalog_match and catalog_match.name and self._is_generic_device_name(name):
+                name = catalog_match.name
             identity = HidIdentity(
                 name=name,
                 vid=vid,
@@ -145,7 +160,7 @@ class DeviceDetector:
                 CockpitDevice(
                     id=_stable_id("hid", instance_id, name, vid, pid),
                     display_name=name,
-                    kind=_guess_kind(name, DeviceBus.HID, vid, pid),
+                    kind=_guess_kind(name, DeviceBus.HID, vid, pid, self._catalog),
                     bus=DeviceBus.HID,
                     hid=identity,
                 )
@@ -189,6 +204,9 @@ class DeviceDetector:
                 instance_id = f"WINMM\\{id_part}\\JOY{row['index']}"
 
             name = self._joystick_oem_name(vid, pid) or row.get("name") or f"Joystick {row['index'] + 1}"
+            catalog_match = self._catalog.match(name, vid, pid)
+            if catalog_match and catalog_match.name and self._is_generic_device_name(name):
+                name = catalog_match.name
             order = int(row["index"]) + 1
             identity = HidIdentity(
                 name=name,
@@ -201,7 +219,7 @@ class DeviceDetector:
                 CockpitDevice(
                     id=_stable_id("hid", instance_id, name, vid, pid),
                     display_name=name,
-                    kind=_guess_kind(name, DeviceBus.HID, vid, pid),
+                    kind=_guess_kind(name, DeviceBus.HID, vid, pid, self._catalog),
                     bus=DeviceBus.HID,
                     hid=identity,
                 )
@@ -306,6 +324,25 @@ class DeviceDetector:
     def _is_generic_game_controller_row(row: dict[str, Any]) -> bool:
         name = str(row.get("FriendlyName") or "").lower()
         return name in {"contrôleur de jeu hid", "controleur de jeu hid", "hid-compliant game controller", "game controller", "vjoy device"}
+
+    @staticmethod
+    def _is_generic_device_name(name: str | None) -> bool:
+        normalized = str(name or "").strip().lower()
+        return normalized in {
+            "",
+            "hid device",
+            "hid-compliant game controller",
+            "game controller",
+            "contrôleur de jeu hid",
+            "contrã´leur de jeu hid",
+            "controleur de jeu hid",
+            "périphérique d'entrée usb",
+            "périphérique d’entrée usb",
+            "pã©riphã©rique dâ€™entrã©e usb",
+            "pã©riphã©rique d'entrã©e usb",
+            "microsoft pc-joystick driver",
+            "pilote de joystick pc microsoft",
+        }
 
     @staticmethod
     def _deduplicate_hid_display_names(devices: list[CockpitDevice]) -> list[CockpitDevice]:

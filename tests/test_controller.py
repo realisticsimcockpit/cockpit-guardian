@@ -69,7 +69,7 @@ def _controller(tmp_path: str):
 
 
 class ControllerTests(unittest.TestCase):
-    def test_first_check_forces_deep_windows_scan_once(self):
+    def test_first_check_creates_initial_configuration_snapshot(self):
         with tempfile.TemporaryDirectory() as tmp:
             controller, check_engine, _ = _controller(tmp)
             controller.save_settings(Settings(deep_windows_scan=False))
@@ -77,8 +77,9 @@ class ControllerTests(unittest.TestCase):
             controller.check_now()
             controller.check_now()
 
-            self.assertEqual(check_engine.deep_scan_values, [True, False])
-            self.assertFalse(controller.load_settings().initial_deep_windows_scan_done)
+            self.assertIsNotNone(controller.load_snapshot())
+            self.assertEqual(check_engine.deep_scan_values, [False, False])
+            self.assertTrue(controller.load_settings().initial_deep_windows_scan_done)
 
     def test_first_save_configuration_forces_deep_windows_scan_once(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -37,6 +37,9 @@ class AppController:
 
     def save_configuration(self) -> Snapshot:
         settings = self.load_settings()
+        return self._capture_snapshot(settings)
+
+    def _capture_snapshot(self, settings: Settings) -> Snapshot:
         deep_scan = self._deep_scan_for_operation(settings, persist_initial=True)
         devices = self.detector.detect_all(include_windows_metadata=deep_scan)
         software = [
@@ -55,6 +58,10 @@ class AppController:
     def check_now(self) -> CheckReport:
         settings = self.load_settings()
         snapshot = self.load_snapshot()
+        if snapshot is None:
+            snapshot = self._capture_snapshot(settings)
+            settings = self.load_settings()
+            self.logger.info("Initial configuration snapshot created automatically")
         deep_scan = self._deep_scan_for_operation(settings, persist_initial=snapshot is not None)
         report = self.check_engine.run_check(
             snapshot,

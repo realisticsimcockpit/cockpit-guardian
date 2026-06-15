@@ -12,6 +12,7 @@ def utc_now_iso() -> str:
 
 class DeviceKind(str, Enum):
     WHEEL = "wheel"
+    STEERING_WHEEL = "steering_wheel"
     PEDALS = "pedals"
     SHIFTER = "shifter"
     HANDBRAKE = "handbrake"

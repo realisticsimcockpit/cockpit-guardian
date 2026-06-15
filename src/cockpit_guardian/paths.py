@@ -28,6 +28,7 @@ class AppPaths:
         self.exports = self.root / "exports"
         self.snapshot = self.root / "snapshot.json"
         self.settings = self.root / "settings.json"
+        self.device_catalog = self.root / "device_catalog.json"
         self.restore_history = self.root / "restore_history.json"
 
     def ensure(self) -> None:
