@@ -69,7 +69,8 @@ $nuitkaArgs = @(
     "--windows-product-version=$Version",
     "--copyright=Copyright (c) 2026 $Publisher",
     "--nofollow-import-to=pytest,unittest,tkinter",
-    "src\cockpit_guardian\__main__.py"
+    "--python-flag=-m",
+    "src\cockpit_guardian"
 )
 
 & $Python @nuitkaArgs

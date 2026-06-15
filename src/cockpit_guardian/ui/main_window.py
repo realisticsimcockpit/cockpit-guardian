@@ -105,6 +105,7 @@ DASHBOARD_TEXT = {
         "import": "Import",
         "device_headers": ["Device", "Role", "Status", "USB"],
         "joystick_order": "Joystick Order",
+        "joystick_order_hint": "Drag & drop to reorder",
         "joystick_headers": ["#", "Joystick", "USB"],
         "usb_health": "USB",
         "quick_log": "Quick log",
@@ -194,6 +195,7 @@ DASHBOARD_TEXT = {
         "import": "Importer",
         "device_headers": ["Périphérique", "Rôle", "Statut", "USB"],
         "joystick_order": "Ordre contrôleurs",
+        "joystick_order_hint": "Glisser-deposer pour reordonner",
         "joystick_headers": ["#", "Contrôleur", "USB"],
         "usb_health": "USB",
         "quick_log": "Journal rapide",
@@ -772,8 +774,9 @@ class MainWindow(QMainWindow):
         self._configure_table(self.joystick_table)
         self.joystick_table.enable_row_reorder()
         self.joystick_table.order_changed.connect(self._joystick_order_changed)
-        self.joystick_panel = self._panel("Joystick Order", self.joystick_table)
+        self.joystick_panel = self._panel("Joystick Order", self.joystick_table, subtitle=self._dashboard_text("joystick_order_hint"))
         self.joystick_panel_title = self.joystick_panel.title_label
+        self.joystick_panel_subtitle = self.joystick_panel.subtitle_label
         self.joystick_panel_icon = self.joystick_panel.title_icon
         bottom_row.addWidget(self.joystick_panel, 3)
 
@@ -910,7 +913,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(page, "Advanced / Debug")
         self.refresh_advanced()
 
-    def _panel(self, title: str, child: QWidget, show_icon: bool = True) -> QWidget:
+    def _panel(self, title: str, child: QWidget, show_icon: bool = True, subtitle: str | None = None) -> QWidget:
         panel = QFrame()
         panel.setObjectName("DataPanel")
         layout = QVBoxLayout(panel)
@@ -921,15 +924,20 @@ class MainWindow(QMainWindow):
         title_layout.setSpacing(4)
         label = QLabel(title)
         label.setObjectName("PanelTitle")
+        subtitle_label = QLabel(subtitle or "")
+        subtitle_label.setObjectName("PanelSubtitle")
+        subtitle_label.setVisible(bool(subtitle))
         icon = StatusIconLabel()
         icon.setObjectName("PanelTitleIcon")
         icon.setVisible(show_icon)
         title_layout.addWidget(label)
+        title_layout.addWidget(subtitle_label)
         title_layout.addWidget(icon)
         title_layout.addStretch(1)
         layout.addLayout(title_layout)
         layout.addWidget(child)
         panel.title_label = label
+        panel.subtitle_label = subtitle_label
         panel.title_icon = icon
         return panel
 
@@ -1126,6 +1134,7 @@ class MainWindow(QMainWindow):
         self._set_table_headers(self.device_table, self._dashboard_text("device_headers"))
         self._set_table_headers(self.joystick_table, self._dashboard_text("joystick_headers"))
         self.joystick_panel_title.setText(self._dashboard_text("joystick_order"))
+        self.joystick_panel_subtitle.setText(self._dashboard_text("joystick_order_hint"))
         self.quick_log_panel_title.setText(self._dashboard_text("quick_log"))
         tabs = self._dashboard_text("tabs")
         for index, label in enumerate(tabs):
