@@ -38,6 +38,15 @@ class UsbTopologyTests(unittest.TestCase):
         self.assertEqual(info.source, "WCH CH343 USB serial bridge")
         self.assertEqual(info.confidence, "low")
 
+    def test_usb_identity_without_topology_requires_speed_scan(self):
+        detector = UsbTopologyDetector()
+
+        info = detector.infer_connection(name="SIMAGIC Alpha EVO Wheelbase", vid="3670", pid="0500")
+
+        self.assertEqual(info.label, "USB speed scan needed")
+        self.assertEqual(info.source, "Windows PnP identity")
+        self.assertIn("USBTreeView", info.note)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -106,7 +106,7 @@ should not be treated as a lab-grade USB speed measurement.
 
 For the best topology hints, enable `Deep Windows scan` in Settings. With the
 default lightweight scan, Cockpit Guardian avoids extra PowerShell/PnP queries and
-may show `USB speed unknown` for devices that require hub topology data.
+may show `USB speed scan needed` for devices that require hub topology data.
 
 Cockpit Guardian runs one Deep Windows scan automatically on first launch so the
 initial cockpit baseline captures richer USB topology. The Settings toggle remains

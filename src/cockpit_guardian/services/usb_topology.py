@@ -123,12 +123,12 @@ class UsbTopologyDetector:
             )
         if normalized_vid:
             return UsbConnectionInfo(
-                label="USB speed unknown",
+                label="USB speed scan needed",
                 usb_generation=None,
                 hub_or_port=hub_or_port,
                 confidence="unknown",
                 source="Windows PnP identity",
-                note="Negotiated speed requires a USBView-level hub query.",
+                note="Negotiated speed requires a USBView or USBTreeView-level hub query.",
             )
         return UsbConnectionInfo()
 

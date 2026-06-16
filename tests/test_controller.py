@@ -5,7 +5,7 @@ from pathlib import Path
 
 from cockpit_guardian.config_manager import ConfigManager
 from cockpit_guardian.controller import AppController
-from cockpit_guardian.models import CheckReport, GlobalStatus, JoystickOrderResult, Settings, utc_now_iso
+from cockpit_guardian.models import CheckReport, CockpitDevice, DeviceBus, DeviceKind, GlobalStatus, JoystickOrderResult, Settings, utc_now_iso
 from cockpit_guardian.paths import AppPaths
 
 
@@ -112,6 +112,20 @@ class ControllerTests(unittest.TestCase):
             controller.update_joystick_order(["Pedals", "Wheel"])
 
             self.assertEqual(controller.load_snapshot().joystick_order, ["Pedals", "Wheel"])
+
+    def test_update_device_role_persists_snapshot_kind(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            controller, _, _ = _controller(tmp)
+            controller.config.create_snapshot(
+                "Rig",
+                [CockpitDevice(id="serial-a", display_name="USB Serial", kind=DeviceKind.OTHER, bus=DeviceBus.SERIAL)],
+                [],
+                [],
+            )
+
+            controller.update_device_role("serial-a", DeviceKind.SEAT_MOVER)
+
+            self.assertEqual(controller.load_snapshot().devices[0].kind, DeviceKind.SEAT_MOVER)
 
 
 if __name__ == "__main__":

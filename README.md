@@ -148,6 +148,7 @@ Main docs:
 - [Visual assets](docs/ASSETS.md)
 - [Configuration backup](docs/CONFIG_BACKUP.md)
 - [Integration notices](docs/INTEGRATION_NOTICES.md)
+- [USB speed scan](docs/USB_SPEED.md)
 - [Windows installer](docs/WINDOWS_INSTALLER.md)
 - [Release process](docs/RELEASE_PROCESS.md)
 - [Repository setup](docs/REPOSITORY_SETUP.md)

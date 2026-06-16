@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .check_engine import CheckEngine
 from .config_manager import ConfigManager
-from .models import CheckReport, RestoreAction, RestoreReport, Settings, Snapshot
+from .models import CheckReport, DeviceKind, RestoreAction, RestoreReport, Settings, Snapshot
 from .services.device_detector import DeviceDetector
 from .services.joystick_manager import JoystickOrderManager
 from .services.restore_engine import RestoreEngine
@@ -126,3 +126,44 @@ class AppController:
             self.last_report.joystick_order = self.joystick_manager.compare(order, self.last_report.joystick_order.current)
         self.logger.info("Joystick order updated: %s", ", ".join(order))
         return snapshot
+
+    def update_device_role(self, device_id: str, kind: DeviceKind) -> Snapshot:
+        snapshot = self.load_snapshot()
+        if snapshot is None:
+            raise ValueError("No saved configuration found. Use Save Configuration first.")
+
+        updated = False
+        for device in snapshot.devices:
+            if device.id == device_id:
+                device.kind = kind
+                updated = True
+                break
+
+        if not updated and self.last_report:
+            source = self._device_from_last_report(device_id)
+            if source is not None:
+                source.kind = kind
+                snapshot.devices.append(source)
+                updated = True
+
+        if not updated:
+            raise ValueError("Device is not part of the saved configuration yet.")
+
+        self.config.save_snapshot(snapshot)
+        if self.last_report:
+            for check in self.last_report.device_checks:
+                if any(device and device.id == device_id for device in (check.expected, check.detected)):
+                    for device in (check.expected, check.detected):
+                        if device:
+                            device.kind = kind
+        self.logger.info("Device role updated: %s -> %s", device_id, kind.value)
+        return snapshot
+
+    def _device_from_last_report(self, device_id: str):
+        if not self.last_report:
+            return None
+        for check in self.last_report.device_checks:
+            for device in (check.detected, check.expected):
+                if device and device.id == device_id:
+                    return device
+        return None

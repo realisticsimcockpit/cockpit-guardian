@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QPointF, QRectF, QSize, Qt, QThread, QTimer, Signal, Slot
-from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
+from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -47,8 +47,26 @@ WINDOW_HEIGHT = 679
 YOUTUBE_URL = "https://www.youtube.com/@realisticsimcockpit"
 CHECKLIST_ROWS_PER_COLUMN = 8
 CHECKLIST_COLUMNS = 3
-CHECKLIST_COLUMN_WIDTH = 134
+CHECKLIST_COLUMN_WIDTH = 122
 STATUS_ICON_SIZE = 13
+LOGO_LOCKUP_WIDTH = 186
+STATUS_BLOCK_WIDTH = 344
+
+ROLE_OPTIONS = (
+    ("Wheel base", DeviceKind.WHEEL),
+    ("Steering wheel", DeviceKind.STEERING_WHEEL),
+    ("Pedals", DeviceKind.PEDALS),
+    ("DIY Active Pedal", DeviceKind.ACTIVE_PEDAL),
+    ("Shifter", DeviceKind.SHIFTER),
+    ("Handbrake", DeviceKind.HANDBRAKE),
+    ("Button box", DeviceKind.BUTTON_BOX),
+    ("DDU", DeviceKind.DDU),
+    ("SimHub Arduino", DeviceKind.ARDUINO_SIMHUB),
+    ("Wind Simulator", DeviceKind.WIND_SIMULATOR),
+    ("SeatMover", DeviceKind.SEAT_MOVER),
+    ("Ambilight", DeviceKind.AMBILIGHT),
+    ("Other", DeviceKind.OTHER),
+)
 
 DASHBOARD_TEXT = {
     "en": {
@@ -73,24 +91,30 @@ DASHBOARD_TEXT = {
             DeviceKind.WHEEL: "Wheel base",
             DeviceKind.STEERING_WHEEL: "Steering wheel",
             DeviceKind.PEDALS: "Pedals",
+            DeviceKind.ACTIVE_PEDAL: "DIY Active Pedal",
             DeviceKind.SHIFTER: "Shifter",
             DeviceKind.HANDBRAKE: "Handbrake",
             DeviceKind.BUTTON_BOX: "Button Box",
             DeviceKind.DDU: "DDU",
             DeviceKind.ARDUINO_SIMHUB: "Arduino SimHub",
             DeviceKind.WIND_SIMULATOR: "Wind Simulator",
+            DeviceKind.SEAT_MOVER: "SeatMover",
+            DeviceKind.AMBILIGHT: "Ambilight",
             DeviceKind.OTHER: "Other",
         },
         "checklist_device_kinds": {
             DeviceKind.WHEEL: "Wheel base",
             DeviceKind.STEERING_WHEEL: "Steering wheel",
             DeviceKind.PEDALS: "Pedals",
+            DeviceKind.ACTIVE_PEDAL: "DIY Active Pedal",
             DeviceKind.SHIFTER: "Shifter",
             DeviceKind.HANDBRAKE: "Handbrake",
             DeviceKind.BUTTON_BOX: "Button box",
             DeviceKind.DDU: "DDU display",
             DeviceKind.ARDUINO_SIMHUB: "SimHub Arduino",
             DeviceKind.WIND_SIMULATOR: "Wind",
+            DeviceKind.SEAT_MOVER: "SeatMover",
+            DeviceKind.AMBILIGHT: "Ambilight",
             DeviceKind.OTHER: "Device",
         },
         "software_group": "Software",
@@ -128,6 +152,7 @@ DASHBOARD_TEXT = {
             "USB 1.x/full-speed path": "USB 1.x/full-speed path",
             "USB serial bridge": "USB serial bridge",
             "USB speed unknown": "USB speed unknown",
+            "USB speed scan needed": "USB speed scan needed",
         },
         "usb_sources": {
             "Arduino USB Serial": "Arduino USB Serial",
@@ -165,24 +190,30 @@ DASHBOARD_TEXT = {
             DeviceKind.WHEEL: "Base volant",
             DeviceKind.STEERING_WHEEL: "Volant",
             DeviceKind.PEDALS: "Pédales",
+            DeviceKind.ACTIVE_PEDAL: "DIY Active Pedal",
             DeviceKind.SHIFTER: "Boîte",
             DeviceKind.HANDBRAKE: "Frein à main",
             DeviceKind.BUTTON_BOX: "Boîtier boutons",
             DeviceKind.DDU: "DDU",
             DeviceKind.ARDUINO_SIMHUB: "Arduino SimHub",
             DeviceKind.WIND_SIMULATOR: "Ventilation",
+            DeviceKind.SEAT_MOVER: "SeatMover",
+            DeviceKind.AMBILIGHT: "Ambilight",
             DeviceKind.OTHER: "Autre",
         },
         "checklist_device_kinds": {
             DeviceKind.WHEEL: "Base volant",
             DeviceKind.STEERING_WHEEL: "Volant",
             DeviceKind.PEDALS: "Pédalier",
+            DeviceKind.ACTIVE_PEDAL: "DIY Active Pedal",
             DeviceKind.SHIFTER: "Boîte",
             DeviceKind.HANDBRAKE: "Frein à main",
             DeviceKind.BUTTON_BOX: "Boîtier boutons",
             DeviceKind.DDU: "Écran DDU",
             DeviceKind.ARDUINO_SIMHUB: "Arduino SimHub",
             DeviceKind.WIND_SIMULATOR: "Ventilation",
+            DeviceKind.SEAT_MOVER: "SeatMover",
+            DeviceKind.AMBILIGHT: "Ambilight",
             DeviceKind.OTHER: "Périphérique",
         },
         "software_group": "Logiciels",
@@ -220,6 +251,7 @@ DASHBOARD_TEXT = {
             "USB 1.x/full-speed path": "Chemin USB 1.x / pleine vitesse",
             "USB serial bridge": "Pont série USB",
             "USB speed unknown": "Vitesse USB inconnue",
+            "USB speed scan needed": "Scan vitesse USB requis",
         },
         "usb_sources": {
             "Arduino USB Serial": "Arduino",
@@ -342,7 +374,8 @@ class JoystickOrderTableWidget(SeparatorTableWidget):
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
         self.setDragDropOverwriteMode(False)
-        self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
+        self.setDefaultDropAction(Qt.DropAction.MoveAction)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
 
@@ -354,6 +387,11 @@ class JoystickOrderTableWidget(SeparatorTableWidget):
     def dropEvent(self, event) -> None:  # noqa: N802 - Qt override
         if self._drag_start_row < 0:
             super().dropEvent(event)
+            return
+        if self.rowCount() <= 1:
+            event.setDropAction(Qt.DropAction.MoveAction)
+            event.accept()
+            self._drag_start_row = -1
             return
         position = event.position().toPoint() if hasattr(event, "position") else event.pos()
         target_row = self.indexAt(position).row()
@@ -367,6 +405,7 @@ class JoystickOrderTableWidget(SeparatorTableWidget):
         if target_row != self._drag_start_row:
             self._move_row(self._drag_start_row, target_row)
             self.order_changed.emit(self.current_order())
+        event.setDropAction(Qt.DropAction.MoveAction)
         event.accept()
         self._drag_start_row = -1
 
@@ -389,7 +428,7 @@ class JoystickOrderTableWidget(SeparatorTableWidget):
         return [
             self.item(row, 1).text()
             for row in range(self.rowCount())
-            if self.item(row, 1) and self.item(row, 1).text()
+            if self.item(row, 1) and self.item(row, 1).text() and self.item(row, 0) and self.item(row, 0).text() != "-"
         ]
 
 
@@ -570,7 +609,7 @@ class MainWindow(QMainWindow):
     def _resize_dashboard_columns(self) -> None:
         if not hasattr(self, "device_table"):
             return
-        self._set_table_column_widths(self.device_table, [0.22, 0.14, 0.30, 0.34])
+        self._set_table_column_widths(self.device_table, [0.24, 0.20, 0.28, 0.28])
         self._set_table_column_widths(self.joystick_table, [0.05, 0.35, 0.60])
         if hasattr(self, "usb_table"):
             self._set_table_column_widths(self.usb_table, [0.20, 0.16, 0.26, 0.38])
@@ -637,29 +676,33 @@ class MainWindow(QMainWindow):
 
         logo_block = QWidget()
         logo_block.setObjectName("LogoBlock")
+        logo_block.setMinimumWidth(STATUS_BLOCK_WIDTH)
+        logo_block.setMaximumWidth(STATUS_BLOCK_WIDTH)
         logo_layout = QVBoxLayout(logo_block)
         logo_layout.setContentsMargins(0, 0, 0, 0)
         logo_layout.setSpacing(0)
         self.dashboard_logo = QLabel()
         self.dashboard_logo.setObjectName("DashboardLogo")
-        self.dashboard_logo.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.dashboard_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo = asset_pixmap("ui_logo_cg.png")
         if not logo.isNull():
             self.dashboard_logo.setPixmap(
                 logo.scaled(
-                    186,
+                    LOGO_LOCKUP_WIDTH,
                     55,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        self.dashboard_logo.setFixedHeight(56)
+        self.dashboard_logo.setFixedSize(LOGO_LOCKUP_WIDTH, 56)
         self.logo_credit_label = QLabel()
         self.logo_credit_label.setObjectName("LogoCredit")
-        self.logo_credit_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self.logo_credit_label.setFixedHeight(12)
+        self.logo_credit_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.logo_credit_label.setFixedSize(LOGO_LOCKUP_WIDTH, 12)
         self.status_title = QLabel("CHECK NOT DONE")
         self.status_title.setObjectName("StatusTitle")
+        self.status_title.setFixedWidth(STATUS_BLOCK_WIDTH)
+        self.status_title.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         logo_layout.addWidget(self.dashboard_logo)
         logo_layout.addWidget(self.logo_credit_label)
         logo_layout.addSpacing(4)
@@ -684,7 +727,7 @@ class MainWindow(QMainWindow):
         self.summary_content = QWidget()
         self.summary_content.setObjectName("SummaryContent")
         self.summary_content.setMinimumWidth(CHECKLIST_COLUMN_WIDTH * CHECKLIST_COLUMNS + 36)
-        self.summary_content.setMaximumWidth(500)
+        self.summary_content.setMaximumWidth(456)
         self.summary_checklist_layout = QGridLayout(self.summary_content)
         self.summary_checklist_layout.setContentsMargins(0, 0, 0, 0)
         self.summary_checklist_layout.setHorizontalSpacing(18)
@@ -1097,12 +1140,32 @@ class MainWindow(QMainWindow):
         self._load_priority_table()
         self.refresh_logs()
         self.refresh_advanced()
+        QTimer.singleShot(0, self._resize_dashboard_columns)
 
     def _apply_status_style(self, status: GlobalStatus) -> None:
         color = STATUS_COLORS.get(status, "#6b7280")
+        large_status = status in {GlobalStatus.RESTORE_NEEDED, GlobalStatus.CRITICAL_DEVICE_MISSING}
+        font_size = self._status_font_size(32 if large_status else 16, 24 if large_status else 16)
+        min_height = 38 if large_status else 20
+        font = self.status_title.font()
+        font.setBold(True)
+        font.setPixelSize(font_size)
+        self.status_title.setFont(font)
+        self.status_title.setMinimumHeight(min_height)
         self.status_title.setStyleSheet(
-            f"font-size: 16px; font-weight: 800; color: {color}; background: transparent;"
+            f"font-size: {font_size}px; font-weight: 800; color: {color}; background: transparent;"
         )
+
+    def _status_font_size(self, desired: int, minimum: int) -> int:
+        text = self.status_title.text()
+        width = max(1, self.status_title.width() or STATUS_BLOCK_WIDTH)
+        font = self.status_title.font()
+        font.setBold(True)
+        for size in range(desired, minimum - 1, -1):
+            font.setPixelSize(size)
+            if QFontMetrics(font).horizontalAdvance(text) <= width:
+                return size
+        return minimum
 
     def _dashboard_text(self, key: str):
         language = self.settings.language if self.settings.language in DASHBOARD_TEXT else "en"
@@ -1184,23 +1247,60 @@ class MainWindow(QMainWindow):
         for check in report.device_checks:
             if not self._is_serial_check(check):
                 continue
-            device = check.expected or check.detected
+            device = check.detected or check.expected
+            snapshot_device = check.expected or check.detected
             usb_device = check.detected or check.expected
             row = self.device_table.rowCount()
             self.device_table.insertRow(row)
-            role = self._device_kind_text(device.kind if device else None)
             usb = self._usb_summary(usb_device)
             detail = check.detail or ""
             if check.ffb_clipping_percent is not None:
                 detail = self._dashboard_text("ffb_clipping_detail").format(percent=check.ffb_clipping_percent)
             tooltip = detail or check.message
-            values = [check.label, role, self._device_status_text(check), usb]
+            label = device.label if device else check.label
+            values = [label, "", self._device_status_text(check), usb]
             for column, value in enumerate(values):
+                if column == 1:
+                    continue
                 item = self._table_item(value)
                 item.setToolTip(tooltip)
                 if column == 2:
                     item.setForeground(QColor(SEVERITY_COLORS.get(check.severity, "#e5e7eb")))
                 self.device_table.setItem(row, column, item)
+            role_combo = self._role_combo(device.kind if device else None)
+            role_combo.setToolTip("Edit the saved role for this device")
+            if snapshot_device:
+                role_combo.currentIndexChanged.connect(
+                    lambda _index, device_id=snapshot_device.id, combo=role_combo: self._device_role_changed(device_id, combo)
+                )
+            else:
+                role_combo.setDisabled(True)
+            self.device_table.setCellWidget(row, 1, role_combo)
+
+    def _role_combo(self, kind: DeviceKind | None) -> QComboBox:
+        combo = QComboBox()
+        for label, option_kind in ROLE_OPTIONS:
+            combo.addItem(label, option_kind.value)
+        target = kind or DeviceKind.OTHER
+        for index in range(combo.count()):
+            if combo.itemData(index) == target.value:
+                combo.setCurrentIndex(index)
+                break
+        combo.setFixedHeight(22)
+        return combo
+
+    def _device_role_changed(self, device_id: str, combo: QComboBox) -> None:
+        value = combo.currentData()
+        try:
+            kind = DeviceKind(str(value))
+            self.controller.update_device_role(device_id, kind)
+        except Exception as exc:
+            QMessageBox.warning(self, "Cockpit Guardian", str(exc))
+            return
+        if self.controller.last_report:
+            self._update_summary(self.controller.last_report)
+            self._load_priority_table()
+            self.refresh_advanced()
 
     @staticmethod
     def _is_serial_check(check: DeviceCheck) -> bool:
@@ -1227,7 +1327,7 @@ class MainWindow(QMainWindow):
         label = self._usb_label_text(device.usb.label)
         if device.usb.negotiated_speed_mbps:
             return f"{label} - {device.usb.negotiated_speed_mbps} Mbps"
-        if device.usb.source and device.usb.source not in {"not detected", "Windows PnP topology"}:
+        if device.usb.source and device.usb.source not in {"not detected", "Windows PnP topology", "Windows PnP identity"}:
             return f"{label} - {self._usb_source_text(device.usb.source)}"
         if device.usb.hub_or_port:
             return f"{label} - {self._short_usb_location(device.usb.hub_or_port)}"
@@ -1249,7 +1349,7 @@ class MainWindow(QMainWindow):
         return "..." + compact[-31:]
 
     def _update_joystick(self, report: CheckReport) -> None:
-        order = report.joystick_order.expected or report.joystick_order.current
+        order = self._joystick_display_order(report)
         devices_by_name = self._devices_by_joystick_name(report)
         self.joystick_table.setRowCount(0)
         for index, name in enumerate(order, start=1):
@@ -1266,6 +1366,17 @@ class MainWindow(QMainWindow):
             self.joystick_table.setItem(0, 1, self._table_item(report.joystick_order.message))
             self.joystick_table.setItem(0, 2, self._table_item("-"))
 
+    @staticmethod
+    def _joystick_display_order(report: CheckReport) -> list[str]:
+        order = list(report.joystick_order.expected or [])
+        seen = {name.lower() for name in order}
+        for name in report.joystick_order.current:
+            if name.lower() in seen:
+                continue
+            order.append(name)
+            seen.add(name.lower())
+        return order
+
     def _joystick_order_changed(self, order: list[str]) -> None:
         try:
             self.controller.update_joystick_order(order)
@@ -1276,6 +1387,7 @@ class MainWindow(QMainWindow):
             return
         if self.controller.last_report:
             self._update_status_icons(self.controller.last_report)
+            self._update_joystick(self.controller.last_report)
 
     @staticmethod
     def _devices_by_joystick_name(report: CheckReport) -> dict[str, object]:
@@ -1294,18 +1406,24 @@ class MainWindow(QMainWindow):
 
     def _update_summary(self, report: CheckReport) -> None:
         self._clear_layout(self.summary_checklist_layout)
-        items = []
-        seen_device_ids: set[str] = set()
+        summary: dict[str, Severity] = {}
         for check in report.device_checks:
-            device = check.expected or check.detected
-            if not device or device.id in seen_device_ids:
+            device = check.detected or check.expected
+            if not device:
                 continue
-            seen_device_ids.add(device.id)
-            items.append((self._checklist_device_kind_text(device.kind), check.severity))
+            label = self._summary_device_label(device)
+            current = summary.get(label)
+            summary[label] = check.severity if current is None else self._worst_severity([current, check.severity])
+        items = list(summary.items())
         if report.software:
             items.append((self._dashboard_text("software_group"), self._software_summary_severity(report.software)))
         for index, (label, severity) in enumerate(items):
             self._add_checklist_row(self.summary_checklist_layout, index, label, severity)
+
+    def _summary_device_label(self, device) -> str:
+        if device.kind == DeviceKind.OTHER:
+            return device.label
+        return self._checklist_device_kind_text(device.kind)
 
     def _update_status_icons(self, report: CheckReport) -> None:
         self.usb_status_row.setVisible(False)
@@ -1469,7 +1587,7 @@ class MainWindow(QMainWindow):
             id_item = QTableWidgetItem(device.label)
             id_item.setData(Qt.ItemDataRole.UserRole, device.id)
             self.priority_table.setItem(row, 0, id_item)
-            self.priority_table.setItem(row, 1, QTableWidgetItem(device.kind.value.replace("_", " ").title()))
+            self.priority_table.setItem(row, 1, QTableWidgetItem(self._device_kind_text(device.kind)))
             combo = QComboBox()
             combo.addItems([Priority.REQUIRED.value, Priority.OPTIONAL.value, Priority.IGNORED.value])
             combo.setCurrentText(device.priority.value)

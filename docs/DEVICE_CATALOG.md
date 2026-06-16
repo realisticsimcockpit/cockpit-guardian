@@ -34,10 +34,13 @@ Supported `kind` values:
 - `wheel`: wheel base / direct-drive base
 - `steering_wheel`: USB wheel rim, button wheel, Formula/GT wheel
 - `pedals`
+- `active_pedal`
 - `shifter`
 - `handbrake`
 - `button_box`
 - `ddu`
 - `arduino_simhub`
 - `wind_simulator`
+- `seat_mover`
+- `ambilight`
 - `other`

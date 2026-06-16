@@ -33,13 +33,15 @@ class DeviceDetectorTests(unittest.TestCase):
     def test_product_catalog_distinguishes_wheelbase_from_steering_wheel(self):
         wheelbase = _guess_kind("SIMAGIC Alpha EVO Wheelbase", DeviceBus.HID, "3670", "0500")
         gt_neo = _guess_kind("SIMAGIC GT Neo", DeviceBus.HID)
-        pedals = _guess_kind("DIY_FFB_PEDAL_JOYSTICK", DeviceBus.HID, "303A", "8331")
+        active_pedal = _guess_kind("DIY_FFB_PEDAL_JOYSTICK", DeviceBus.HID, "303A", "8331")
         yoke = _guess_kind("Saitek Pro Flight Yoke", DeviceBus.HID, "06A3", "0BAC")
+        throttle = _guess_kind("TWCS Throttle", DeviceBus.HID, "044F", "B687")
 
         self.assertEqual(wheelbase, DeviceKind.WHEEL)
         self.assertEqual(gt_neo, DeviceKind.STEERING_WHEEL)
-        self.assertEqual(pedals, DeviceKind.PEDALS)
+        self.assertEqual(active_pedal, DeviceKind.ACTIVE_PEDAL)
         self.assertEqual(yoke, DeviceKind.OTHER)
+        self.assertEqual(throttle, DeviceKind.OTHER)
 
     def test_legacy_non_usb_com_port_is_not_cockpit_serial(self):
         port = FakePort(hwid="ACPI\\PNP0501\\0")

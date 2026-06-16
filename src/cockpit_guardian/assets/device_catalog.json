@@ -2,7 +2,7 @@
   "schema": "cockpit_guardian.device_catalog.v1",
   "notes": [
     "Editable product catalog. Copy is created in the user data folder as device_catalog.json.",
-    "kind values: wheel, steering_wheel, pedals, shifter, handbrake, button_box, ddu, arduino_simhub, wind_simulator, other.",
+    "kind values: wheel, steering_wheel, pedals, active_pedal, shifter, handbrake, button_box, ddu, arduino_simhub, wind_simulator, seat_mover, ambilight, other.",
     "Use vid/pid for exact USB matches, or name_contains for case-insensitive text matches."
   ],
   "entries": [
@@ -27,7 +27,7 @@
     {"name": "Asetek Pedals", "kind": "pedals", "name_contains": ["asetek pedals", "la prima pedals", "forte pedals", "invicta pedals"]},
     {"name": "Logitech G PRO Racing Wheel", "kind": "wheel", "name_contains": ["logitech g pro racing wheel", "logitech pro wheel"]},
     {"name": "Logitech / Saitek Yoke", "kind": "other", "vid": "06A3", "pid": "0BAC"},
-    {"name": "Thrustmaster TWCS Throttle", "kind": "shifter", "vid": "044F", "pid": "B687"},
+    {"name": "Thrustmaster TWCS Throttle", "kind": "other", "vid": "044F", "pid": "B687"},
     {"name": "Thrustmaster T.16000M", "kind": "other", "vid": "044F", "pid": "B10A"},
     {"name": "Thrustmaster Wheel Base", "kind": "wheel", "name_contains": ["thrustmaster t818", "thrustmaster t300", "thrustmaster t500", "thrustmaster t-gt", "thrustmaster ts-pc", "thrustmaster tx", "thrustmaster t248", "thrustmaster t128"]},
     {"name": "Thrustmaster Pedals", "kind": "pedals", "name_contains": ["t-lcm", "tlcm", "t3pa", "t3pm"]},
@@ -49,9 +49,11 @@
     {"name": "Arduino / SimHub device", "kind": "arduino_simhub", "name_contains": ["arduino", "genuino", "simhub"]},
     {"name": "ESP32 / Espressif device", "kind": "arduino_simhub", "name_contains": ["esp32", "esp8266", "espressif"]},
     {"name": "Wind Simulator", "kind": "wind_simulator", "name_contains": ["wind simulator", "wind sim", "wind fan", "shakeit wind"]},
-    {"name": "DIY FFB Pedal Joystick", "kind": "pedals", "vid": "303A", "pid": "8331"},
-    {"name": "DIY FFB Pedal Joystick", "kind": "pedals", "vid": "3035", "pid": "8213"},
-    {"name": "DIY FFB Pedal Brake", "kind": "pedals", "vid": "3035", "pid": "8215"},
-    {"name": "DIY FFB Pedal", "kind": "pedals", "name_contains": ["diy_ffb_pedal", "ffb_pedal"]}
+    {"name": "DIY Active Pedal", "kind": "active_pedal", "vid": "303A", "pid": "8331"},
+    {"name": "DIY Active Pedal", "kind": "active_pedal", "vid": "3035", "pid": "8213"},
+    {"name": "DIY Active Pedal Brake", "kind": "active_pedal", "vid": "3035", "pid": "8215"},
+    {"name": "DIY Active Pedal", "kind": "active_pedal", "name_contains": ["diy_ffb_pedal", "ffb_pedal"]},
+    {"name": "SeatMover", "kind": "seat_mover", "name_contains": ["seatmover", "seat mover", "motion platform"]},
+    {"name": "Ambilight", "kind": "ambilight", "name_contains": ["ambilight", "ambient light"]}
   ]
 }

@@ -14,12 +14,15 @@ class DeviceKind(str, Enum):
     WHEEL = "wheel"
     STEERING_WHEEL = "steering_wheel"
     PEDALS = "pedals"
+    ACTIVE_PEDAL = "active_pedal"
     SHIFTER = "shifter"
     HANDBRAKE = "handbrake"
     BUTTON_BOX = "button_box"
     DDU = "ddu"
     ARDUINO_SIMHUB = "arduino_simhub"
     WIND_SIMULATOR = "wind_simulator"
+    SEAT_MOVER = "seat_mover"
+    AMBILIGHT = "ambilight"
     OTHER = "other"
 
 

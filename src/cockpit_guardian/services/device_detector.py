@@ -4,6 +4,7 @@ import hashlib
 import os
 import time
 import ctypes
+import unicodedata
 from dataclasses import dataclass, field
 from ctypes import wintypes
 from typing import Any
@@ -13,6 +14,9 @@ from .device_catalog import DeviceCatalog
 from .integration_notices import ARDUINO_VIDS, ESPRESSIF_VIDS, generic_usb_serial_bridge_name, normalize_usb_id
 from .usb_topology import UsbTopologyDetector
 from .windows_util import is_windows, parse_vid_pid, run_powershell_json
+
+
+ACTIVE_PEDAL_USB_IDS = {("303A", "8331"), ("3035", "8213"), ("3035", "8215")}
 
 
 def _stable_id(*parts: object) -> str:
@@ -27,15 +31,28 @@ def _guess_kind(
     pid: str | None = None,
     catalog: DeviceCatalog | None = None,
 ) -> DeviceKind:
+    normalized = _normalized_device_name(name)
+    normalized_vid = normalize_usb_id(vid)
+    normalized_pid = normalize_usb_id(pid)
+    if (normalized_vid == "044F" and normalized_pid == "B687") or "twcs throttle" in normalized:
+        return DeviceKind.OTHER
+    if (normalized_vid, normalized_pid) in ACTIVE_PEDAL_USB_IDS:
+        return DeviceKind.ACTIVE_PEDAL
+    if any(token in normalized for token in ["diy_ffb_pedal", "ffb_pedal", "activepedal", "active pedal"]):
+        return DeviceKind.ACTIVE_PEDAL
+    if any(token in normalized for token in ["seatmover", "seat mover", "motion platform"]):
+        return DeviceKind.SEAT_MOVER
+    if any(token in normalized for token in ["ambilight", "ambient light"]):
+        return DeviceKind.AMBILIGHT
+
     match = (catalog or DeviceCatalog.load_default()).match(name, vid, pid)
     if match is not None:
         return match.kind
-    normalized = (name or "").lower()
     checks = [
         (DeviceKind.WHEEL, ["wheel base", "wheelbase", "simagic alpha", "moza r", "fanatec", "simucube", "asetek"]),
         (DeviceKind.STEERING_WHEEL, ["steering wheel", "rim", "gt neo", "formula wheel"]),
         (DeviceKind.PEDALS, ["pedal", "heusinkveld", "p1000", "p2000", "clubsport"]),
-        (DeviceKind.SHIFTER, ["shifter", "seq", "h-pattern", "throttle"]),
+        (DeviceKind.SHIFTER, ["shifter", "seq", "h-pattern"]),
         (DeviceKind.HANDBRAKE, ["handbrake", "hand brake"]),
         (DeviceKind.BUTTON_BOX, ["button", "stream deck", "box", "gt neo"]),
         (DeviceKind.DDU, ["ddu", "dash", "display"]),
@@ -45,7 +62,6 @@ def _guess_kind(
     for kind, needles in checks:
         if any(needle in normalized for needle in needles):
             return kind
-    normalized_vid = normalize_usb_id(vid)
     if normalized_vid in ESPRESSIF_VIDS or any(token in normalized for token in ["esp32", "esp8266", "espressif"]):
         return DeviceKind.ARDUINO_SIMHUB
     if normalized_vid in ARDUINO_VIDS or any(token in normalized for token in ["arduino", "genuino"]):
@@ -55,6 +71,11 @@ def _guess_kind(
     if bus == DeviceBus.SERIAL:
         return DeviceKind.OTHER
     return DeviceKind.OTHER
+
+
+def _normalized_device_name(name: str | None) -> str:
+    normalized = unicodedata.normalize("NFKD", str(name or "").strip().lower())
+    return "".join(character for character in normalized if not unicodedata.combining(character)).replace("’", "'")
 
 
 @dataclass(slots=True)
@@ -95,6 +116,13 @@ class DeviceDetector:
             vid = f"{port.vid:04X}" if port.vid is not None else None
             pid = f"{port.pid:04X}" if port.pid is not None else None
             friendly = metadata.get("friendly_name") or port.description or port.name or port.device
+            catalog_match = self._catalog.match(friendly, vid, pid)
+            if (vid, pid) in ACTIVE_PEDAL_USB_IDS:
+                catalog_name = "DIY Active Pedal"
+            else:
+                catalog_name = catalog_match.name if catalog_match else None
+            if catalog_name and self._is_generic_device_name(friendly):
+                friendly = f"{catalog_name} ({port.device})"
             identity = SerialIdentity(
                 current_com=port.device,
                 vid=vid,
@@ -327,7 +355,9 @@ class DeviceDetector:
 
     @staticmethod
     def _is_generic_device_name(name: str | None) -> bool:
-        normalized = str(name or "").strip().lower()
+        normalized = _normalized_device_name(name)
+        if normalized.startswith(("peripherique serie usb", "usb serial device")):
+            return True
         return normalized in {
             "",
             "hid device",
