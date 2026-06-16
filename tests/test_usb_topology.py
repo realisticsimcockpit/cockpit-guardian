@@ -1,5 +1,9 @@
 import unittest
+import tempfile
+from pathlib import Path
 
+from cockpit_guardian.models import CockpitDevice, DeviceBus, HidIdentity
+from cockpit_guardian.services.usb_speed_scanner import UsbSpeedRecord
 from cockpit_guardian.services.usb_topology import UsbTopologyDetector
 
 
@@ -46,6 +50,36 @@ class UsbTopologyTests(unittest.TestCase):
         self.assertEqual(info.label, "USB speed scan needed")
         self.assertEqual(info.source, "Windows PnP identity")
         self.assertIn("USBTreeView", info.note)
+
+    def test_cached_usb_speed_annotates_matching_device(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "usb_speed_cache.json"
+            detector = UsbTopologyDetector(speed_cache_path=cache)
+            detector._save_speed_cache(
+                [
+                    UsbSpeedRecord(
+                        vid="3670",
+                        pid="0500",
+                        label="USB Full-Speed",
+                        usb_generation="USB 1.1",
+                        negotiated_speed_mbps=12,
+                        hub_path="hub",
+                        port=3,
+                    )
+                ]
+            )
+            device = CockpitDevice(
+                id="wheel",
+                display_name="SIMAGIC Alpha EVO Wheelbase",
+                bus=DeviceBus.HID,
+                hid=HidIdentity(name="SIMAGIC Alpha EVO Wheelbase", vid="3670", pid="0500"),
+            )
+
+            detector.annotate_devices([device])
+
+            self.assertEqual(device.usb.label, "USB Full-Speed")
+            self.assertEqual(device.usb.negotiated_speed_mbps, 12)
+            self.assertEqual(device.usb.source, "USB hub speed scan")
 
 
 if __name__ == "__main__":

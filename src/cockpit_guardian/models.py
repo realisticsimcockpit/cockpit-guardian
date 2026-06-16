@@ -105,6 +105,7 @@ class CockpitDevice:
     bus: DeviceBus = DeviceBus.UNKNOWN
     priority: Priority = Priority.REQUIRED
     custom_name: str | None = None
+    custom_role: str | None = None
     serial: SerialIdentity | None = None
     hid: HidIdentity | None = None
     usb: UsbConnectionInfo | None = None
@@ -283,6 +284,7 @@ def device_from_dict(data: dict[str, Any]) -> CockpitDevice:
         bus=_enum(DeviceBus, data.get("bus", DeviceBus.UNKNOWN.value)),
         priority=_enum(Priority, data.get("priority", Priority.REQUIRED.value)),
         custom_name=data.get("custom_name"),
+        custom_role=data.get("custom_role"),
         serial=serial_from_dict(data.get("serial")),
         hid=hid_from_dict(data.get("hid")),
         usb=usb_from_dict(data.get("usb")),

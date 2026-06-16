@@ -116,6 +116,11 @@ scan without marking the baseline as complete; the first `Save Configuration`
 still captures a deep scan. Imported config backups also reset this first-scan
 flag for the new Windows installation.
 
+USB negotiated speed is scanned separately with a USBView-style hub query. The
+first app launch without `%APPDATA%\Cockpit Guardian\usb_speed_cache.json`
+creates that cache automatically. The Dashboard `USB Speed Scan` button forces a
+fresh scan after hardware changes.
+
 ## Sources Checked
 
 - SimHub Custom Serial Devices wiki:

@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QHeaderView,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QMainWindow,
@@ -51,22 +52,6 @@ CHECKLIST_COLUMN_WIDTH = 122
 STATUS_ICON_SIZE = 13
 LOGO_LOCKUP_WIDTH = 186
 STATUS_BLOCK_WIDTH = 344
-
-ROLE_OPTIONS = (
-    ("Wheel base", DeviceKind.WHEEL),
-    ("Steering wheel", DeviceKind.STEERING_WHEEL),
-    ("Pedals", DeviceKind.PEDALS),
-    ("DIY Active Pedal", DeviceKind.ACTIVE_PEDAL),
-    ("Shifter", DeviceKind.SHIFTER),
-    ("Handbrake", DeviceKind.HANDBRAKE),
-    ("Button box", DeviceKind.BUTTON_BOX),
-    ("DDU", DeviceKind.DDU),
-    ("SimHub Arduino", DeviceKind.ARDUINO_SIMHUB),
-    ("Wind Simulator", DeviceKind.WIND_SIMULATOR),
-    ("SeatMover", DeviceKind.SEAT_MOVER),
-    ("Ambilight", DeviceKind.AMBILIGHT),
-    ("Other", DeviceKind.OTHER),
-)
 
 DASHBOARD_TEXT = {
     "en": {
@@ -126,13 +111,14 @@ DASHBOARD_TEXT = {
         "save": "Save",
         "check": "Check",
         "restore": "Restore",
+        "usb_speed_scan": "USB Speed Scan",
         "rollback": "Rollback",
         "export": "Export",
         "import": "Import",
         "device_headers": ["Device", "Role", "Status", "USB"],
         "joystick_order": "Joystick Order",
         "joystick_order_hint": "Drag & drop to reorder",
-        "joystick_headers": ["#", "Joystick", "USB"],
+        "joystick_headers": ["Win #", "Joystick", "Saved #", "USB"],
         "usb_health": "USB",
         "quick_log": "Quick log",
         "no_quick_log": "No recent event",
@@ -142,6 +128,7 @@ DASHBOARD_TEXT = {
         "busy_save": "Saving configuration",
         "busy_check": "Checking cockpit",
         "busy_restore": "Restoring cockpit",
+        "busy_usb_speed_scan": "Scanning USB speeds",
         "busy_rollback": "Rolling back restore",
         "busy_export": "Exporting backup",
         "busy_import": "Importing backup",
@@ -225,13 +212,14 @@ DASHBOARD_TEXT = {
         "save": "Enregistrer",
         "check": "Vérifier",
         "restore": "Restaurer",
+        "usb_speed_scan": "USB Speed Scan",
         "rollback": "Annuler",
         "export": "Exporter",
         "import": "Importer",
         "device_headers": ["Périphérique", "Rôle", "Statut", "USB"],
         "joystick_order": "Joystick Order",
         "joystick_order_hint": "Drag & drop to reorder",
-        "joystick_headers": ["#", "Joystick", "USB"],
+        "joystick_headers": ["Win #", "Joystick", "Saved #", "USB"],
         "usb_health": "USB",
         "quick_log": "Journal rapide",
         "no_quick_log": "Aucun événement récent",
@@ -241,6 +229,7 @@ DASHBOARD_TEXT = {
         "busy_save": "Enregistrement de la configuration",
         "busy_check": "Vérification du cockpit",
         "busy_restore": "Restauration du cockpit",
+        "busy_usb_speed_scan": "Scan USB Speed",
         "busy_rollback": "Annulation de la restauration",
         "busy_export": "Export de la sauvegarde",
         "busy_import": "Import de la sauvegarde",
@@ -415,14 +404,7 @@ class JoystickOrderTableWidget(SeparatorTableWidget):
         self.insertRow(target_row)
         for column, item in enumerate(items):
             self.setItem(target_row, column, item)
-        self._renumber_rows()
         self.setCurrentCell(target_row, 0)
-
-    def _renumber_rows(self) -> None:
-        for row in range(self.rowCount()):
-            number_item = self.item(row, 0)
-            if number_item:
-                number_item.setText(str(row + 1))
 
     def current_order(self) -> list[str]:
         return [
@@ -610,7 +592,7 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "device_table"):
             return
         self._set_table_column_widths(self.device_table, [0.24, 0.20, 0.28, 0.28])
-        self._set_table_column_widths(self.joystick_table, [0.05, 0.35, 0.60])
+        self._set_table_column_widths(self.joystick_table, [0.08, 0.34, 0.12, 0.46])
         if hasattr(self, "usb_table"):
             self._set_table_column_widths(self.usb_table, [0.20, 0.16, 0.26, 0.38])
         if hasattr(self, "priority_table"):
@@ -775,12 +757,14 @@ class MainWindow(QMainWindow):
         self.save_button.setObjectName("PrimaryButton")
         self.check_button = QPushButton("Check")
         self.restore_button = QPushButton("Restore")
+        self.usb_speed_scan_button = QPushButton("USB Speed Scan")
         self.rollback_button = QPushButton("Rollback")
         self.export_config_button = QPushButton("Export")
         self.import_config_button = QPushButton("Import")
         self.save_button.clicked.connect(self.save_configuration)
         self.check_button.clicked.connect(self.check_now)
         self.restore_button.clicked.connect(self.restore)
+        self.usb_speed_scan_button.clicked.connect(self.scan_usb_speeds)
         self.rollback_button.clicked.connect(self.rollback)
         self.export_config_button.clicked.connect(self.export_config_backup)
         self.import_config_button.clicked.connect(self.import_config_backup)
@@ -791,6 +775,7 @@ class MainWindow(QMainWindow):
                 self.save_button,
                 self.check_button,
                 self.restore_button,
+                self.usb_speed_scan_button,
                 self.rollback_button,
                 self.export_config_button,
                 self.import_config_button,
@@ -809,6 +794,9 @@ class MainWindow(QMainWindow):
         self._set_table_headers(self.device_table, ["Device", "Role", "Status", "USB"])
         self._configure_table(self.device_table)
         self.device_table.setAlternatingRowColors(True)
+        self.device_table.cellDoubleClicked.connect(self._device_table_cell_double_clicked)
+        self.device_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.device_table.customContextMenuRequested.connect(self._device_table_context_requested)
         self.com_ports_panel = self._panel("COM Ports", self.device_table)
         self.com_ports_panel_title = self.com_ports_panel.title_label
         self.com_ports_panel_icon = self.com_ports_panel.title_icon
@@ -817,8 +805,8 @@ class MainWindow(QMainWindow):
         bottom_row = QHBoxLayout()
         bottom_row.setSpacing(14)
 
-        self.joystick_table = JoystickOrderTableWidget(0, 3)
-        self._set_table_headers(self.joystick_table, ["#", "Joystick Order", "USB"])
+        self.joystick_table = JoystickOrderTableWidget(0, 4)
+        self._set_table_headers(self.joystick_table, ["Win #", "Joystick Order", "Saved #", "USB"])
         self._configure_table(self.joystick_table)
         self.joystick_table.enable_row_reorder()
         self.joystick_table.order_changed.connect(self._joystick_order_changed)
@@ -1023,6 +1011,7 @@ class MainWindow(QMainWindow):
             self.save_button,
             self.check_button,
             self.restore_button,
+            self.usb_speed_scan_button,
             self.rollback_button,
             self.export_config_button,
             self.import_config_button,
@@ -1064,6 +1053,14 @@ class MainWindow(QMainWindow):
 
     def restore(self) -> None:
         self._run_async(self.controller.restore, self._restore_finished, self._dashboard_text("busy_restore"))
+
+    def scan_usb_speeds(self) -> None:
+        self._run_async(self.controller.scan_usb_speeds, self._usb_speed_scan_finished, self._dashboard_text("busy_usb_speed_scan"))
+
+    def _usb_speed_scan_finished(self, count: int) -> None:
+        QMessageBox.information(self, "USB Speed Scan", f"USB speed scan complete. {count} USB port records cached.")
+        if self.controller.last_report:
+            self.update_report(self.controller.last_report)
 
     def rollback(self) -> None:
         self._run_async(self.controller.rollback_last_restore, self._rollback_finished, self._dashboard_text("busy_rollback"))
@@ -1144,9 +1141,8 @@ class MainWindow(QMainWindow):
 
     def _apply_status_style(self, status: GlobalStatus) -> None:
         color = STATUS_COLORS.get(status, "#6b7280")
-        large_status = status in {GlobalStatus.RESTORE_NEEDED, GlobalStatus.CRITICAL_DEVICE_MISSING}
-        font_size = self._status_font_size(32 if large_status else 16, 24 if large_status else 16)
-        min_height = 38 if large_status else 20
+        font_size = self._status_font_size(32, 24)
+        min_height = 38
         font = self.status_title.font()
         font.setBold(True)
         font.setPixelSize(font_size)
@@ -1193,6 +1189,7 @@ class MainWindow(QMainWindow):
         self.save_button.setText(self._dashboard_text("save"))
         self.check_button.setText(self._dashboard_text("check"))
         self.restore_button.setText(self._dashboard_text("restore"))
+        self.usb_speed_scan_button.setText(self._dashboard_text("usb_speed_scan"))
         self.rollback_button.setText(self._dashboard_text("rollback"))
         self.export_config_button.setText(self._dashboard_text("export"))
         self.import_config_button.setText(self._dashboard_text("import"))
@@ -1258,45 +1255,50 @@ class MainWindow(QMainWindow):
                 detail = self._dashboard_text("ffb_clipping_detail").format(percent=check.ffb_clipping_percent)
             tooltip = detail or check.message
             label = device.label if device else check.label
-            values = [label, "", self._device_status_text(check), usb]
+            values = [label, self._device_role_text(device), self._device_status_text(check), usb]
             for column, value in enumerate(values):
-                if column == 1:
-                    continue
                 item = self._table_item(value)
                 item.setToolTip(tooltip)
+                if column == 1 and snapshot_device:
+                    item.setData(Qt.ItemDataRole.UserRole, snapshot_device.id)
                 if column == 2:
                     item.setForeground(QColor(SEVERITY_COLORS.get(check.severity, "#e5e7eb")))
                 self.device_table.setItem(row, column, item)
-            role_combo = self._role_combo(device.kind if device else None)
-            role_combo.setToolTip("Edit the saved role for this device")
-            if snapshot_device:
-                role_combo.currentIndexChanged.connect(
-                    lambda _index, device_id=snapshot_device.id, combo=role_combo: self._device_role_changed(device_id, combo)
-                )
-            else:
-                role_combo.setDisabled(True)
-            self.device_table.setCellWidget(row, 1, role_combo)
 
-    def _role_combo(self, kind: DeviceKind | None) -> QComboBox:
-        combo = QComboBox()
-        for label, option_kind in ROLE_OPTIONS:
-            combo.addItem(label, option_kind.value)
-        target = kind or DeviceKind.OTHER
-        for index in range(combo.count()):
-            if combo.itemData(index) == target.value:
-                combo.setCurrentIndex(index)
-                break
-        combo.setFixedHeight(22)
-        return combo
+    def _device_role_text(self, device) -> str:
+        if not device:
+            return self._dashboard_text("unknown")
+        return device.custom_role or self._device_kind_text(device.kind)
 
-    def _device_role_changed(self, device_id: str, combo: QComboBox) -> None:
-        value = combo.currentData()
+    def _device_table_cell_double_clicked(self, row: int, column: int) -> None:
+        if column == 1:
+            self._edit_device_role(row)
+
+    def _device_table_context_requested(self, position) -> None:
+        index = self.device_table.indexAt(position)
+        if index.isValid() and index.column() == 1:
+            self._edit_device_role(index.row())
+
+    def _edit_device_role(self, row: int) -> None:
+        item = self.device_table.item(row, 1)
+        if item is None:
+            return
+        device_id = item.data(Qt.ItemDataRole.UserRole)
+        if not device_id:
+            return
+        current = item.text()
+        role, accepted = QInputDialog.getText(self, "Edit Role", "Role:", QLineEdit.EchoMode.Normal, current)
+        if not accepted:
+            return
+        role = " ".join(role.strip().split())
+        if not role:
+            return
         try:
-            kind = DeviceKind(str(value))
-            self.controller.update_device_role(device_id, kind)
+            self.controller.update_device_role(str(device_id), role)
         except Exception as exc:
             QMessageBox.warning(self, "Cockpit Guardian", str(exc))
             return
+        item.setText(role)
         if self.controller.last_report:
             self._update_summary(self.controller.last_report)
             self._load_priority_table()
@@ -1349,7 +1351,8 @@ class MainWindow(QMainWindow):
         return "..." + compact[-31:]
 
     def _update_joystick(self, report: CheckReport) -> None:
-        order = self._joystick_display_order(report)
+        order = list(report.joystick_order.current or report.joystick_order.expected)
+        saved_positions = {name.lower(): str(index) for index, name in enumerate(report.joystick_order.expected, start=1)}
         devices_by_name = self._devices_by_joystick_name(report)
         self.joystick_table.setRowCount(0)
         for index, name in enumerate(order, start=1):
@@ -1359,23 +1362,14 @@ class MainWindow(QMainWindow):
             windows_order = device.hid.joystick_order if device and device.hid and device.hid.joystick_order else index
             self.joystick_table.setItem(row, 0, self._table_item(str(windows_order)))
             self.joystick_table.setItem(row, 1, self._table_item(name))
-            self.joystick_table.setItem(row, 2, self._table_item(self._usb_summary(device)))
+            self.joystick_table.setItem(row, 2, self._table_item(saved_positions.get(name.lower(), "-")))
+            self.joystick_table.setItem(row, 3, self._table_item(self._usb_summary(device)))
         if not order:
             self.joystick_table.insertRow(0)
             self.joystick_table.setItem(0, 0, self._table_item("-"))
             self.joystick_table.setItem(0, 1, self._table_item(report.joystick_order.message))
             self.joystick_table.setItem(0, 2, self._table_item("-"))
-
-    @staticmethod
-    def _joystick_display_order(report: CheckReport) -> list[str]:
-        order = list(report.joystick_order.expected or [])
-        seen = {name.lower() for name in order}
-        for name in report.joystick_order.current:
-            if name.lower() in seen:
-                continue
-            order.append(name)
-            seen.add(name.lower())
-        return order
+            self.joystick_table.setItem(0, 3, self._table_item("-"))
 
     def _joystick_order_changed(self, order: list[str]) -> None:
         try:
@@ -1387,7 +1381,6 @@ class MainWindow(QMainWindow):
             return
         if self.controller.last_report:
             self._update_status_icons(self.controller.last_report)
-            self._update_joystick(self.controller.last_report)
 
     @staticmethod
     def _devices_by_joystick_name(report: CheckReport) -> dict[str, object]:
@@ -1421,6 +1414,8 @@ class MainWindow(QMainWindow):
             self._add_checklist_row(self.summary_checklist_layout, index, label, severity)
 
     def _summary_device_label(self, device) -> str:
+        if device.custom_role:
+            return device.custom_role
         if device.kind == DeviceKind.OTHER:
             return device.label
         return self._checklist_device_kind_text(device.kind)
@@ -1587,7 +1582,7 @@ class MainWindow(QMainWindow):
             id_item = QTableWidgetItem(device.label)
             id_item.setData(Qt.ItemDataRole.UserRole, device.id)
             self.priority_table.setItem(row, 0, id_item)
-            self.priority_table.setItem(row, 1, QTableWidgetItem(self._device_kind_text(device.kind)))
+            self.priority_table.setItem(row, 1, QTableWidgetItem(self._device_role_text(device)))
             combo = QComboBox()
             combo.addItems([Priority.REQUIRED.value, Priority.OPTIONAL.value, Priority.IGNORED.value])
             combo.setCurrentText(device.priority.value)

@@ -101,6 +101,9 @@ class DeviceDetector:
         devices.extend(self.detect_hid_devices(cache_ttl_seconds=hid_cache_ttl_seconds))
         return self._usb_topology.annotate_devices(devices, include_windows_metadata=include_windows_metadata)
 
+    def scan_usb_speeds(self, force: bool = True) -> int:
+        return len(self._usb_topology.ensure_speed_cache(force=force))
+
     def detect_serial_devices(self, include_windows_metadata: bool = False) -> list[CockpitDevice]:
         try:
             from serial.tools import list_ports

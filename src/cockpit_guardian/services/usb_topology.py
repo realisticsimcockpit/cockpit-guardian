@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
-from ..models import CockpitDevice, UsbConnectionInfo
+from ..models import CockpitDevice, UsbConnectionInfo, utc_now_iso
 from .integration_notices import generic_usb_serial_bridge_name, normalize_usb_id
+from .usb_speed_scanner import UsbSpeedRecord, UsbSpeedScanner
 from .windows_util import is_windows, run_powershell_json
 
 
@@ -44,12 +47,28 @@ class UsbTopologyDetector:
 
     _metadata_cache: dict[str, dict[str, str | None]] = field(default_factory=dict)
     _metadata_cache_at: float = 0.0
+    speed_cache_path: Path | None = None
+    _speed_records: list[UsbSpeedRecord] = field(default_factory=list)
+    _speed_cache_loaded: bool = False
 
     def annotate_devices(self, devices: list[CockpitDevice], include_windows_metadata: bool = False) -> list[CockpitDevice]:
         metadata = self._windows_usb_metadata() if include_windows_metadata else {}
+        speed_records = self.ensure_speed_cache(force=False) if self.speed_cache_path else []
         for device in devices:
             instance_id = self._device_instance_id(device)
             row = metadata.get((instance_id or "").upper(), {})
+            cached_speed = self._match_speed_record(device, speed_records)
+            if cached_speed is not None:
+                device.usb = UsbConnectionInfo(
+                    label=cached_speed.label,
+                    usb_generation=cached_speed.usb_generation,
+                    negotiated_speed_mbps=cached_speed.negotiated_speed_mbps or None,
+                    hub_or_port=f"USB hub port {cached_speed.port}",
+                    confidence=cached_speed.confidence,
+                    source=cached_speed.source,
+                    note=cached_speed.note,
+                )
+                continue
             device.usb = self.infer_connection(
                 instance_id=instance_id,
                 location_path=self._location_path(device) or row.get("location_path"),
@@ -61,6 +80,62 @@ class UsbTopologyDetector:
                 bus_description=row.get("bus_description"),
             )
         return devices
+
+    def ensure_speed_cache(self, force: bool = False) -> list[UsbSpeedRecord]:
+        if not force and self._speed_cache_loaded:
+            return list(self._speed_records)
+        if not force:
+            cached = self._load_speed_cache()
+            if cached:
+                self._speed_records = cached
+                self._speed_cache_loaded = True
+                return list(self._speed_records)
+        records = UsbSpeedScanner().scan()
+        self._speed_records = list(records)
+        self._speed_cache_loaded = True
+        if records:
+            self._save_speed_cache(records)
+        return list(self._speed_records)
+
+    def _has_speed_cache(self) -> bool:
+        return bool(self.speed_cache_path and self.speed_cache_path.exists())
+
+    def _load_speed_cache(self) -> list[UsbSpeedRecord]:
+        if not self.speed_cache_path or not self.speed_cache_path.exists():
+            return []
+        try:
+            data = json.loads(self.speed_cache_path.read_text(encoding="utf-8"))
+        except Exception:
+            return []
+        raw_records = data.get("records") if isinstance(data, dict) else None
+        if not isinstance(raw_records, list):
+            return []
+        records = [UsbSpeedRecord.from_dict(item) for item in raw_records if isinstance(item, dict)]
+        return [record for record in records if record is not None]
+
+    def _save_speed_cache(self, records: list[UsbSpeedRecord]) -> None:
+        if not self.speed_cache_path:
+            return
+        self.speed_cache_path.parent.mkdir(parents=True, exist_ok=True)
+        data = {
+            "schema": "cockpit_guardian.usb_speed_cache.v1",
+            "scanned_at": utc_now_iso(),
+            "records": [record.to_dict() for record in records],
+        }
+        self.speed_cache_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def _match_speed_record(self, device: CockpitDevice, records: list[UsbSpeedRecord]) -> UsbSpeedRecord | None:
+        vid = normalize_usb_id(self._vid(device))
+        pid = normalize_usb_id(self._pid(device))
+        if not vid or not pid:
+            return None
+        matches = [record for record in records if record.vid == vid and record.pid == pid]
+        if not matches:
+            return None
+        speeds = {(record.label, record.usb_generation, record.negotiated_speed_mbps) for record in matches}
+        if len(speeds) == 1:
+            return matches[0]
+        return matches[0]
 
     def infer_connection(
         self,

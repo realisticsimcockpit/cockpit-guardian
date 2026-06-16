@@ -5,13 +5,14 @@ from pathlib import Path
 
 from cockpit_guardian.config_manager import ConfigManager
 from cockpit_guardian.controller import AppController
-from cockpit_guardian.models import CheckReport, CockpitDevice, DeviceBus, DeviceKind, GlobalStatus, JoystickOrderResult, Settings, utc_now_iso
+from cockpit_guardian.models import CheckReport, CockpitDevice, DeviceBus, DeviceKind, GlobalStatus, HidIdentity, JoystickOrderResult, Settings, utc_now_iso
 from cockpit_guardian.paths import AppPaths
 
 
 class FakeCheckEngine:
     def __init__(self):
         self.deep_scan_values = []
+        self.current_order = []
 
     def run_check(
         self,
@@ -23,7 +24,11 @@ class FakeCheckEngine:
         usb_health_scan_interval_seconds=120,
     ):
         self.deep_scan_values.append(deep_windows_scan)
-        return CheckReport(timestamp=utc_now_iso(), global_status=GlobalStatus.CHECK_NOT_DONE)
+        return CheckReport(
+            timestamp=utc_now_iso(),
+            global_status=GlobalStatus.CHECK_NOT_DONE,
+            joystick_order=JoystickOrderResult(expected=snapshot.joystick_order if snapshot else [], current=list(self.current_order), ok=True),
+        )
 
 
 class FakeRestoreEngine:
@@ -123,9 +128,29 @@ class ControllerTests(unittest.TestCase):
                 [],
             )
 
-            controller.update_device_role("serial-a", DeviceKind.SEAT_MOVER)
+            controller.update_device_role("serial-a", "SeatMover")
 
             self.assertEqual(controller.load_snapshot().devices[0].kind, DeviceKind.SEAT_MOVER)
+            self.assertEqual(controller.load_snapshot().devices[0].custom_role, "SeatMover")
+
+    def test_check_repairs_incomplete_saved_joystick_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            controller, check_engine, _ = _controller(tmp)
+            check_engine.current_order = ["vJoy Device", "TWCS Throttle", "Wheel"]
+            controller.config.create_snapshot(
+                "Rig",
+                [
+                    CockpitDevice(id="vjoy", display_name="vJoy Device", bus=DeviceBus.HID, hid=HidIdentity(name="vJoy Device")),
+                    CockpitDevice(id="twcs", display_name="TWCS Throttle", bus=DeviceBus.HID, hid=HidIdentity(name="TWCS Throttle")),
+                    CockpitDevice(id="wheel", display_name="Wheel", bus=DeviceBus.HID, hid=HidIdentity(name="Wheel")),
+                ],
+                [],
+                ["TWCS Throttle", "Wheel"],
+            )
+
+            controller.check_now()
+
+            self.assertEqual(controller.load_snapshot().joystick_order, ["vJoy Device", "TWCS Throttle", "Wheel"])
 
 
 if __name__ == "__main__":

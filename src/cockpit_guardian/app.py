@@ -28,6 +28,7 @@ from .services.restore_engine import RestoreEngine
 from .services.software_detector import SoftwareDetector
 from .services.telemetry import TelemetryService
 from .services.usb_health import UsbHealthMonitor
+from .services.usb_topology import UsbTopologyDetector
 from .ui.assets import asset_icon, asset_path
 from .ui.main_window import MainWindow
 
@@ -178,7 +179,7 @@ def build_controller(status_callback=None) -> AppController:
     catalog = DeviceCatalog.from_file(user_catalog)
     if not catalog.entries:
         catalog = DeviceCatalog.load_default()
-    detector = DeviceDetector(_catalog=catalog)
+    detector = DeviceDetector(_catalog=catalog, _usb_topology=UsbTopologyDetector(speed_cache_path=paths.usb_speed_cache))
     joystick_manager = JoystickOrderManager()
     status("software")
     software_detector = SoftwareDetector()

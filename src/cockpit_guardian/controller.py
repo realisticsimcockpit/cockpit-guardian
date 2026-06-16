@@ -71,6 +71,8 @@ class AppController:
             software_scan_interval_seconds=settings.software_scan_interval_seconds,
             usb_health_scan_interval_seconds=settings.usb_health_scan_interval_seconds,
         )
+        if snapshot is not None and self._repair_incomplete_joystick_order(snapshot, report):
+            report.joystick_order = self.joystick_manager.compare(snapshot.joystick_order, report.joystick_order.current)
         self.last_report = report
         return report
 
@@ -127,15 +129,20 @@ class AppController:
         self.logger.info("Joystick order updated: %s", ", ".join(order))
         return snapshot
 
-    def update_device_role(self, device_id: str, kind: DeviceKind) -> Snapshot:
+    def update_device_role(self, device_id: str, role: str, kind: DeviceKind | None = None) -> Snapshot:
         snapshot = self.load_snapshot()
         if snapshot is None:
             raise ValueError("No saved configuration found. Use Save Configuration first.")
 
+        role = " ".join(role.strip().split())
+        if not role:
+            raise ValueError("Role cannot be empty.")
+        kind = kind or self._kind_from_role(role)
         updated = False
         for device in snapshot.devices:
             if device.id == device_id:
                 device.kind = kind
+                device.custom_role = role
                 updated = True
                 break
 
@@ -143,6 +150,7 @@ class AppController:
             source = self._device_from_last_report(device_id)
             if source is not None:
                 source.kind = kind
+                source.custom_role = role
                 snapshot.devices.append(source)
                 updated = True
 
@@ -156,8 +164,17 @@ class AppController:
                     for device in (check.expected, check.detected):
                         if device:
                             device.kind = kind
-        self.logger.info("Device role updated: %s -> %s", device_id, kind.value)
+                            device.custom_role = role
+        self.logger.info("Device role updated: %s -> %s", device_id, role)
         return snapshot
+
+    def scan_usb_speeds(self, force: bool = True) -> int:
+        if not hasattr(self.detector, "scan_usb_speeds"):
+            return 0
+        count = self.detector.scan_usb_speeds(force=force)
+        self.logger.info("USB speed scan cached %d records", count)
+        self.last_report = self.check_now()
+        return count
 
     def _device_from_last_report(self, device_id: str):
         if not self.last_report:
@@ -167,3 +184,38 @@ class AppController:
                 if device and device.id == device_id:
                     return device
         return None
+
+    @staticmethod
+    def _kind_from_role(role: str) -> DeviceKind:
+        normalized = role.lower().replace("-", " ").replace("_", " ")
+        aliases = {
+            DeviceKind.WHEEL: ["wheel base", "wheelbase", "base volant"],
+            DeviceKind.STEERING_WHEEL: ["steering wheel", "volant", "gt neo"],
+            DeviceKind.PEDALS: ["pedals", "pedalier", "pédalier", "pedales", "pédales"],
+            DeviceKind.ACTIVE_PEDAL: ["diy active pedal", "active pedal", "activepedal"],
+            DeviceKind.SHIFTER: ["shifter", "boite", "boîte"],
+            DeviceKind.HANDBRAKE: ["handbrake", "hand brake", "frein a main", "frein à main"],
+            DeviceKind.BUTTON_BOX: ["button box", "buttonbox", "boitier boutons", "boîtier boutons"],
+            DeviceKind.DDU: ["ddu", "dash", "display"],
+            DeviceKind.ARDUINO_SIMHUB: ["simhub arduino", "arduino simhub", "arduino"],
+            DeviceKind.WIND_SIMULATOR: ["wind simulator", "wind", "ventilation"],
+            DeviceKind.SEAT_MOVER: ["seatmover", "seat mover", "motion"],
+            DeviceKind.AMBILIGHT: ["ambilight", "ambient light"],
+        }
+        for kind, values in aliases.items():
+            if normalized in values:
+                return kind
+        return DeviceKind.OTHER
+
+    def _repair_incomplete_joystick_order(self, snapshot: Snapshot, report: CheckReport) -> bool:
+        expected = [name for name in snapshot.joystick_order if name]
+        current = [name for name in report.joystick_order.current if name]
+        if not expected or len(expected) >= len(current):
+            return False
+        current_names = {name.lower() for name in current}
+        if not all(name.lower() in current_names for name in expected):
+            return False
+        snapshot.joystick_order = current
+        self.config.save_snapshot(snapshot)
+        self.logger.info("Incomplete joystick order repaired from Windows order: %s", ", ".join(current))
+        return True
