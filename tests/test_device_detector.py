@@ -78,6 +78,23 @@ class DeviceDetectorTests(unittest.TestCase):
         self.assertEqual([device.hid.joystick_order for device in devices if device.hid], [2, 3])
         self.assertEqual(devices[0].hid.device_instance_id, "HID\\VID_044F&PID_B687\\A")
 
+    def test_supplemental_hid_devices_do_not_get_fake_joystick_order(self):
+        detector = DeviceDetector()
+        hid_rows = [
+            {
+                "FriendlyName": "SIMAGIC LED controller",
+                "InstanceId": "HID\\VID_3670&PID_9999\\A",
+                "Manufacturer": "SIMAGIC",
+            }
+        ]
+
+        with patch.object(DeviceDetector, "_read_winmm_joysticks", return_value=[]), patch.object(
+            DeviceDetector, "_windows_joystick_pnp_rows", return_value=[]
+        ), patch("cockpit_guardian.services.device_detector.run_powershell_json", return_value=hid_rows):
+            devices = detector.detect_hid_devices(cache_ttl_seconds=0)
+
+        self.assertIsNone(devices[0].hid.joystick_order)
+
     def test_generic_bridge_notice_warns_when_identity_is_weak(self):
         self.assertTrue(is_generic_usb_serial_bridge("1a86", "7523"))
 

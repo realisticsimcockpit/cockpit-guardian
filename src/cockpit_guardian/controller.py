@@ -118,6 +118,25 @@ class AppController:
         self.last_report = self.check_now()
         return backup
 
+    def clear_logs(self) -> None:
+        log_path = self.config.paths.log_file
+        for handler in self.logger.handlers:
+            base_filename = getattr(handler, "baseFilename", None)
+            if not base_filename or Path(base_filename) != log_path:
+                continue
+            handler.acquire()
+            try:
+                handler.flush()
+                stream = getattr(handler, "stream", None)
+                if stream is not None:
+                    stream.seek(0)
+                    stream.truncate(0)
+            finally:
+                handler.release()
+            return
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_path.write_text("", encoding="utf-8")
+
     def update_joystick_order(self, order: list[str]) -> Snapshot:
         snapshot = self.load_snapshot()
         if snapshot is None:

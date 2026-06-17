@@ -185,7 +185,7 @@ class DeviceDetector:
                 vid=vid,
                 pid=pid,
                 device_instance_id=instance_id,
-                joystick_order=index + 1,
+                joystick_order=None,
             )
             devices.append(
                 CockpitDevice(

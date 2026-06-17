@@ -28,19 +28,16 @@ from PySide6.QtWidgets import (
     QTableWidgetItem,
     QTabWidget,
     QTextEdit,
-    QTreeWidget,
-    QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
 from .. import __version__
 from ..controller import AppController
-from ..models import CheckReport, DeviceBus, DeviceKind, GlobalStatus, Priority, RestoreReport, Settings, Severity, SoftwareState, to_plain
+from ..models import CheckReport, DeviceBus, DeviceKind, GlobalStatus, Priority, RestoreReport, Settings, Severity, SoftwareState
 from .assets import asset_icon, asset_pixmap
 from .theme import SEVERITY_COLORS, STATUS_COLORS, app_stylesheet
 from .tray import GuardianTray
-from ..services.integration_notices import INTEGRATION_NOTICES
 
 
 WINDOW_WIDTH = 905
@@ -58,6 +55,8 @@ DASHBOARD_TEXT = {
         "logo_credit": "by REALISTIC SIMCOCKPIT",
         "footer_prefix": "Author:",
         "footer_version": "Version",
+        "language_en_tooltip": "Switch dashboard language to English",
+        "language_fr_tooltip": "Switch dashboard language to French",
         "status_labels": {
             GlobalStatus.CHECK_NOT_DONE: "Check Not Done",
             GlobalStatus.COCKPIT_READY: "Cockpit Ready",
@@ -115,15 +114,62 @@ DASHBOARD_TEXT = {
         "rollback": "Rollback",
         "export": "Export",
         "import": "Import",
+        "export_config_tooltip": "Choose a cloud-synced folder such as OneDrive, Google Drive, Dropbox, iCloud, or a NAS.",
+        "import_config_tooltip": "Import this backup after reinstalling Windows, then run Restore.",
         "device_headers": ["Device", "Role", "Status", "USB"],
         "joystick_order": "Joystick Order",
         "joystick_order_hint": "Drag & drop to reorder",
         "joystick_headers": ["Win #", "Joystick", "Saved #", "USB"],
         "usb_health": "USB",
+        "usb_health_tab": "USB Health",
+        "usb_health_score": "Stability score: {score}",
+        "usb_health_headers": ["Time", "Severity", "Device", "Event"],
         "quick_log": "Quick log",
         "no_quick_log": "No recent event",
         "last_ffb_clipping": "Last FFB Clipping at {time}",
         "last_usb_disconnect": "Last USB disconnect at {time}",
+        "refresh_logs": "Refresh Logs",
+        "export_logs": "Export Logs",
+        "clear_logs": "Clear Logs",
+        "logs_exported": "Logs exported to {path}.",
+        "clear_logs_confirm": "Clear the current log file?",
+        "clear_logs_done": "Logs cleared.",
+        "log_file_filter": "Log files (*.log);;Text files (*.txt)",
+        "settings": "Settings",
+        "active_profile": "Active profile",
+        "ffb_threshold": "FFB clipping threshold",
+        "notifications": "Notifications",
+        "launch_startup": "Launch at Windows startup",
+        "auto_restore": "Auto-restore",
+        "simhub_required": "SimHub is required",
+        "deep_windows_scan": "Deep Windows scan",
+        "software_scan_cache": "Software scan cache",
+        "usb_health_cache": "USB Health cache",
+        "theme": "Theme",
+        "language": "Language",
+        "save_settings": "Save Settings",
+        "settings_saved": "Settings saved.",
+        "device_priority": "Device priority",
+        "priority_headers": ["Device", "Role", "Priority"],
+        "priority_labels": {
+            Priority.REQUIRED: "Required",
+            Priority.OPTIONAL: "Optional",
+            Priority.IGNORED: "Ignored",
+        },
+        "theme_labels": {"dark": "Dark", "light": "Light"},
+        "no_saved_config": "No saved configuration yet",
+        "edit_role_title": "Edit Role",
+        "edit_role_label": "Role:",
+        "usb_speed_scan_title": "USB Speed Scan",
+        "usb_speed_scan_done": "USB speed scan complete. {count} USB port records cached.",
+        "export_config_title": "Export Config Backup",
+        "import_config_title": "Import Config Backup",
+        "config_backup_filter": "Cockpit Guardian backup (*.json);;JSON files (*.json)",
+        "import_config_confirm": "Importing will replace the current saved configuration after creating a local safety backup. Continue?",
+        "export_config_done": "Configuration backup exported to:\n{path}\n\nStore this file in a cloud-synced folder before reinstalling Windows.",
+        "import_config_done": "Configuration imported. A local safety backup was created at:\n{path}\n\nRun Restore if the check reports changed COM ports or joystick order.",
+        "restore_title": "Restore",
+        "rollback_title": "Rollback Last Restore",
         "busy_default": "Working",
         "busy_save": "Saving configuration",
         "busy_check": "Checking cockpit",
@@ -153,12 +199,14 @@ DASHBOARD_TEXT = {
             "Prolific PL2303 USB serial bridge": "Prolific PL2303",
             "Espressif USB JTAG/serial bridge": "Espressif USB JTAG/serial",
         },
-        "tabs": ["Dashboard", "USB Health", "Logs", "Settings", "Advanced"],
+        "tabs": ["Dashboard", "USB Health", "Logs", "Settings"],
     },
     "fr": {
         "logo_credit": "par REALISTIC SIMCOCKPIT",
         "footer_prefix": "Auteur :",
         "footer_version": "Version",
+        "language_en_tooltip": "Basculer le dashboard en anglais",
+        "language_fr_tooltip": "Basculer le dashboard en français",
         "status_labels": {
             GlobalStatus.CHECK_NOT_DONE: "Contrôle non effectué",
             GlobalStatus.COCKPIT_READY: "Cockpit prêt",
@@ -212,24 +260,71 @@ DASHBOARD_TEXT = {
         "save": "Enregistrer",
         "check": "Vérifier",
         "restore": "Restaurer",
-        "usb_speed_scan": "USB Speed Scan",
+        "usb_speed_scan": "Scan vitesse USB",
         "rollback": "Annuler",
         "export": "Exporter",
         "import": "Importer",
+        "export_config_tooltip": "Choisissez un dossier synchronisé cloud comme OneDrive, Google Drive, Dropbox, iCloud ou un NAS.",
+        "import_config_tooltip": "Importez cette sauvegarde après une réinstallation de Windows, puis lancez Restaurer.",
         "device_headers": ["Périphérique", "Rôle", "Statut", "USB"],
-        "joystick_order": "Joystick Order",
-        "joystick_order_hint": "Drag & drop to reorder",
-        "joystick_headers": ["Win #", "Joystick", "Saved #", "USB"],
+        "joystick_order": "Ordre joysticks",
+        "joystick_order_hint": "Glisser-déposer pour réordonner",
+        "joystick_headers": ["Win #", "Joystick", "Sauvé #", "USB"],
         "usb_health": "USB",
+        "usb_health_tab": "Santé USB",
+        "usb_health_score": "Score de stabilité : {score}",
+        "usb_health_headers": ["Heure", "Sévérité", "Périphérique", "Événement"],
         "quick_log": "Journal rapide",
         "no_quick_log": "Aucun événement récent",
         "last_ffb_clipping": "Dernier écrêtage FFB à {time}",
         "last_usb_disconnect": "Dernière déconnexion USB à {time}",
+        "refresh_logs": "Rafraîchir les logs",
+        "export_logs": "Exporter les logs",
+        "clear_logs": "Effacer les logs",
+        "logs_exported": "Logs exportés vers {path}.",
+        "clear_logs_confirm": "Effacer le fichier de logs actuel ?",
+        "clear_logs_done": "Logs effacés.",
+        "log_file_filter": "Fichiers log (*.log);;Fichiers texte (*.txt)",
+        "settings": "Réglages",
+        "active_profile": "Profil actif",
+        "ffb_threshold": "Seuil écrêtage FFB",
+        "notifications": "Notifications",
+        "launch_startup": "Lancer au démarrage de Windows",
+        "auto_restore": "Restauration automatique",
+        "simhub_required": "SimHub est requis",
+        "deep_windows_scan": "Scan Windows profond",
+        "software_scan_cache": "Cache scan logiciels",
+        "usb_health_cache": "Cache santé USB",
+        "theme": "Thème",
+        "language": "Langue",
+        "save_settings": "Enregistrer les réglages",
+        "settings_saved": "Réglages enregistrés.",
+        "device_priority": "Priorité des périphériques",
+        "priority_headers": ["Périphérique", "Rôle", "Priorité"],
+        "priority_labels": {
+            Priority.REQUIRED: "Requis",
+            Priority.OPTIONAL: "Optionnel",
+            Priority.IGNORED: "Ignoré",
+        },
+        "theme_labels": {"dark": "Sombre", "light": "Clair"},
+        "no_saved_config": "Aucune configuration enregistrée",
+        "edit_role_title": "Modifier le rôle",
+        "edit_role_label": "Rôle :",
+        "usb_speed_scan_title": "Scan vitesse USB",
+        "usb_speed_scan_done": "Scan vitesse USB terminé. {count} ports USB mémorisés.",
+        "export_config_title": "Exporter la sauvegarde",
+        "import_config_title": "Importer une sauvegarde",
+        "config_backup_filter": "Sauvegarde Cockpit Guardian (*.json);;Fichiers JSON (*.json)",
+        "import_config_confirm": "L'import remplacera la configuration actuelle après création d'une sauvegarde locale. Continuer ?",
+        "export_config_done": "Sauvegarde exportée vers :\n{path}\n\nStockez ce fichier dans un dossier synchronisé cloud avant de réinstaller Windows.",
+        "import_config_done": "Configuration importée. Une sauvegarde locale a été créée ici :\n{path}\n\nLancez Restaurer si le contrôle signale des ports COM ou un ordre joystick modifiés.",
+        "restore_title": "Restaurer",
+        "rollback_title": "Annuler la dernière restauration",
         "busy_default": "Traitement en cours",
         "busy_save": "Enregistrement de la configuration",
         "busy_check": "Vérification du cockpit",
         "busy_restore": "Restauration du cockpit",
-        "busy_usb_speed_scan": "Scan USB Speed",
+        "busy_usb_speed_scan": "Scan des vitesses USB",
         "busy_rollback": "Annulation de la restauration",
         "busy_export": "Export de la sauvegarde",
         "busy_import": "Import de la sauvegarde",
@@ -254,7 +349,7 @@ DASHBOARD_TEXT = {
             "Prolific PL2303 USB serial bridge": "Prolific PL2303",
             "Espressif USB JTAG/serial bridge": "Espressif USB JTAG/série",
         },
-        "tabs": ["Dashboard", "USB Health", "Logs", "Settings", "Advanced"],
+        "tabs": ["Dashboard", "Santé USB", "Logs", "Réglages"],
     },
 }
 
@@ -399,12 +494,27 @@ class JoystickOrderTableWidget(SeparatorTableWidget):
         self._drag_start_row = -1
 
     def _move_row(self, source_row: int, target_row: int) -> None:
-        items = [self.takeItem(source_row, column) for column in range(self.columnCount())]
-        self.removeRow(source_row)
-        self.insertRow(target_row)
-        for column, item in enumerate(items):
-            self.setItem(target_row, column, item)
+        rows = self._row_values()
+        if source_row < 0 or source_row >= len(rows):
+            return
+        row_values = rows.pop(source_row)
+        target_row = max(0, min(target_row, len(rows)))
+        rows.insert(target_row, row_values)
+        self.setRowCount(0)
+        for values in rows:
+            row = self.rowCount()
+            self.insertRow(row)
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                self.setItem(row, column, item)
         self.setCurrentCell(target_row, 0)
+
+    def _row_values(self) -> list[list[str]]:
+        return [
+            [self.item(row, column).text() if self.item(row, column) else "" for column in range(self.columnCount())]
+            for row in range(self.rowCount())
+        ]
 
     def current_order(self) -> list[str]:
         return [
@@ -564,7 +674,6 @@ class MainWindow(QMainWindow):
         self._build_usb_health_tab()
         self._build_logs_tab()
         self._build_settings_tab()
-        self._build_advanced_tab()
         self._refresh_dashboard_texts()
         self._update_language_buttons()
         QTimer.singleShot(0, self._resize_dashboard_columns)
@@ -733,7 +842,7 @@ class MainWindow(QMainWindow):
         self.language_eng_button.setIcon(asset_icon("lang_eng.png"))
         self.language_eng_button.setIconSize(QSize(21, 11))
         self.language_eng_button.setFixedSize(25, 14)
-        self.language_eng_button.setToolTip("Switch dashboard language to English")
+        self.language_eng_button.setToolTip(self._dashboard_text("language_en_tooltip"))
         self.language_eng_button.clicked.connect(lambda: self._set_language("en"))
         self.language_fr_button = QPushButton()
         self.language_fr_button.setObjectName("LanguageButton")
@@ -741,7 +850,7 @@ class MainWindow(QMainWindow):
         self.language_fr_button.setIcon(asset_icon("lang_fr.png"))
         self.language_fr_button.setIconSize(QSize(21, 11))
         self.language_fr_button.setFixedSize(25, 14)
-        self.language_fr_button.setToolTip("Basculer le dashboard en francais")
+        self.language_fr_button.setToolTip(self._dashboard_text("language_fr_tooltip"))
         self.language_fr_button.clicked.connect(lambda: self._set_language("fr"))
         language_layout.addWidget(self.language_eng_button)
         language_layout.addWidget(self.language_fr_button)
@@ -768,8 +877,8 @@ class MainWindow(QMainWindow):
         self.rollback_button.clicked.connect(self.rollback)
         self.export_config_button.clicked.connect(self.export_config_backup)
         self.import_config_button.clicked.connect(self.import_config_backup)
-        self.export_config_button.setToolTip("Choose a cloud-synced folder such as OneDrive, Google Drive, Dropbox, iCloud, or a NAS.")
-        self.import_config_button.setToolTip("Import this backup after reinstalling Windows, then run Restore.")
+        self.export_config_button.setToolTip(self._dashboard_text("export_config_tooltip"))
+        self.import_config_button.setToolTip(self._dashboard_text("import_config_tooltip"))
         for index, button in enumerate(
             [
                 self.save_button,
@@ -806,7 +915,7 @@ class MainWindow(QMainWindow):
         bottom_row.setSpacing(14)
 
         self.joystick_table = JoystickOrderTableWidget(0, 4)
-        self._set_table_headers(self.joystick_table, ["Win #", "Joystick Order", "Saved #", "USB"])
+        self._set_table_headers(self.joystick_table, ["Win #", "Joystick", "Saved #", "USB"])
         self._configure_table(self.joystick_table)
         self.joystick_table.enable_row_reorder()
         self.joystick_table.order_changed.connect(self._joystick_order_changed)
@@ -837,43 +946,47 @@ class MainWindow(QMainWindow):
         tables.addLayout(bottom_row, 2)
         layout.addLayout(tables, 1)
 
-        self.tabs.addTab(page, "Dashboard")
+        self.tabs.addTab(page, self._dashboard_text("tabs")[0])
 
     def _build_usb_health_tab(self) -> None:
         page = QWidget()
         layout = QVBoxLayout(page)
-        self.usb_score = QLabel("Stability score: 100")
+        self.usb_score = QLabel(self._dashboard_text("usb_health_score").format(score=100))
         self.usb_score.setStyleSheet("font-size: 20px; font-weight: 700;")
         layout.addWidget(self.usb_score)
         self.usb_table = SeparatorTableWidget(0, 4)
-        self._set_table_headers(self.usb_table, ["Time", "Severity", "Device", "Event"])
+        self._set_table_headers(self.usb_table, self._dashboard_text("usb_health_headers"))
         self._configure_table(self.usb_table)
         self.usb_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         layout.addWidget(self.usb_table)
-        self.tabs.addTab(page, "USB Health")
+        self.tabs.addTab(page, self._dashboard_text("tabs")[1])
 
     def _build_logs_tab(self) -> None:
         page = QWidget()
         layout = QVBoxLayout(page)
         button_layout = QHBoxLayout()
-        refresh = QPushButton("Refresh Logs")
-        export = QPushButton("Export Logs")
-        refresh.clicked.connect(self.refresh_logs)
-        export.clicked.connect(self.export_logs)
-        button_layout.addWidget(refresh)
-        button_layout.addWidget(export)
+        self.refresh_logs_button = QPushButton(self._dashboard_text("refresh_logs"))
+        self.export_logs_button = QPushButton(self._dashboard_text("export_logs"))
+        self.clear_logs_button = QPushButton(self._dashboard_text("clear_logs"))
+        self.refresh_logs_button.clicked.connect(self.refresh_logs)
+        self.export_logs_button.clicked.connect(self.export_logs)
+        self.clear_logs_button.clicked.connect(self.clear_logs)
+        button_layout.addWidget(self.refresh_logs_button)
+        button_layout.addWidget(self.export_logs_button)
+        button_layout.addWidget(self.clear_logs_button)
         button_layout.addStretch(1)
         layout.addLayout(button_layout)
         self.logs_text = QTextEdit()
         self.logs_text.setReadOnly(True)
         layout.addWidget(self.logs_text)
-        self.tabs.addTab(page, "Logs")
+        self.tabs.addTab(page, self._dashboard_text("tabs")[2])
         self.refresh_logs()
 
     def _build_settings_tab(self) -> None:
         page = QWidget()
         layout = QVBoxLayout(page)
         form = QFormLayout()
+        self.settings_form = form
         self.profile_input = QLineEdit(self.settings.profile_name)
         self.ffb_threshold = QDoubleSpinBox()
         self.ffb_threshold.setRange(1, 100)
@@ -898,34 +1011,35 @@ class MainWindow(QMainWindow):
         self.usb_health_scan_interval.setSuffix(" s")
         self.usb_health_scan_interval.setValue(self.settings.usb_health_scan_interval_seconds)
         self.theme_select = QComboBox()
-        self.theme_select.addItems(["dark", "light"])
-        self.theme_select.setCurrentText(self.settings.theme)
+        for value, label in self._dashboard_text("theme_labels").items():
+            self.theme_select.addItem(label, value)
+        self._set_combo_data(self.theme_select, self.settings.theme)
         self.language_select = QComboBox()
         self.language_select.addItems(["en", "fr"])
         self.language_select.setCurrentText(self.settings.language)
-        form.addRow("Active profile", self.profile_input)
-        form.addRow("FFB clipping threshold", self.ffb_threshold)
-        form.addRow("Notifications", self.notifications)
-        form.addRow("Launch at Windows startup", self.launch_startup)
-        form.addRow("Auto-restore", self.auto_restore)
-        form.addRow("SimHub is required", self.simhub_required)
-        form.addRow("Deep Windows scan", self.deep_windows_scan)
-        form.addRow("Software scan cache", self.software_scan_interval)
-        form.addRow("USB Health cache", self.usb_health_scan_interval)
-        form.addRow("Theme", self.theme_select)
-        form.addRow("Language", self.language_select)
+        form.addRow(self._dashboard_text("active_profile"), self.profile_input)
+        form.addRow(self._dashboard_text("ffb_threshold"), self.ffb_threshold)
+        form.addRow(self._dashboard_text("notifications"), self.notifications)
+        form.addRow(self._dashboard_text("launch_startup"), self.launch_startup)
+        form.addRow(self._dashboard_text("auto_restore"), self.auto_restore)
+        form.addRow(self._dashboard_text("simhub_required"), self.simhub_required)
+        form.addRow(self._dashboard_text("deep_windows_scan"), self.deep_windows_scan)
+        form.addRow(self._dashboard_text("software_scan_cache"), self.software_scan_interval)
+        form.addRow(self._dashboard_text("usb_health_cache"), self.usb_health_scan_interval)
+        form.addRow(self._dashboard_text("theme"), self.theme_select)
+        form.addRow(self._dashboard_text("language"), self.language_select)
         layout.addLayout(form)
 
-        save = QPushButton("Save Settings")
-        save.setObjectName("PrimaryButton")
-        save.clicked.connect(self.save_settings)
-        layout.addWidget(save)
+        self.save_settings_button = QPushButton(self._dashboard_text("save_settings"))
+        self.save_settings_button.setObjectName("PrimaryButton")
+        self.save_settings_button.clicked.connect(self.save_settings)
+        layout.addWidget(self.save_settings_button)
 
-        priority_label = QLabel("Device priority")
-        priority_label.setStyleSheet("font-size: 16px; font-weight: 700;")
-        layout.addWidget(priority_label)
+        self.priority_label = QLabel(self._dashboard_text("device_priority"))
+        self.priority_label.setStyleSheet("font-size: 16px; font-weight: 700;")
+        layout.addWidget(self.priority_label)
         self.priority_table = SeparatorTableWidget(0, 3)
-        self._set_table_headers(self.priority_table, ["Device", "Role", "Priority"])
+        self._set_table_headers(self.priority_table, self._dashboard_text("priority_headers"))
         self._configure_table(self.priority_table)
         self.priority_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.priority_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
@@ -933,21 +1047,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.priority_table)
         self._load_priority_table()
         layout.addStretch(1)
-        self.tabs.addTab(page, "Settings")
-
-    def _build_advanced_tab(self) -> None:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        refresh = QPushButton("Refresh Debug Data")
-        refresh.clicked.connect(self.refresh_advanced)
-        layout.addWidget(refresh)
-        self.advanced_tree = QTreeWidget()
-        self.advanced_tree.setHeaderLabels(["Field", "Value"])
-        self.advanced_tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.advanced_tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        layout.addWidget(self.advanced_tree)
-        self.tabs.addTab(page, "Advanced / Debug")
-        self.refresh_advanced()
+        self.tabs.addTab(page, self._dashboard_text("tabs")[3])
 
     def _panel(self, title: str, child: QWidget, show_icon: bool = True, subtitle: str | None = None) -> QWidget:
         panel = QFrame()
@@ -1058,7 +1158,11 @@ class MainWindow(QMainWindow):
         self._run_async(self.controller.scan_usb_speeds, self._usb_speed_scan_finished, self._dashboard_text("busy_usb_speed_scan"))
 
     def _usb_speed_scan_finished(self, count: int) -> None:
-        QMessageBox.information(self, "USB Speed Scan", f"USB speed scan complete. {count} USB port records cached.")
+        QMessageBox.information(
+            self,
+            self._dashboard_text("usb_speed_scan_title"),
+            self._dashboard_text("usb_speed_scan_done").format(count=count),
+        )
         if self.controller.last_report:
             self.update_report(self.controller.last_report)
 
@@ -1069,9 +1173,9 @@ class MainWindow(QMainWindow):
         default_path = Path.home() / self.controller.default_config_backup_name()
         target, _ = QFileDialog.getSaveFileName(
             self,
-            "Export Config Backup",
+            self._dashboard_text("export_config_title"),
             str(default_path),
-            "Cockpit Guardian backup (*.json);;JSON files (*.json)",
+            self._dashboard_text("config_backup_filter"),
         )
         if not target:
             return
@@ -1080,43 +1184,43 @@ class MainWindow(QMainWindow):
     def import_config_backup(self) -> None:
         source, _ = QFileDialog.getOpenFileName(
             self,
-            "Import Config Backup",
+            self._dashboard_text("import_config_title"),
             str(Path.home()),
-            "Cockpit Guardian backup (*.json);;JSON files (*.json)",
+            self._dashboard_text("config_backup_filter"),
         )
         if not source:
             return
         answer = QMessageBox.question(
             self,
-            "Import Config Backup",
-            "Importing will replace the current saved configuration after creating a local safety backup. Continue?",
+            self._dashboard_text("import_config_title"),
+            self._dashboard_text("import_config_confirm"),
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
         self._run_async(lambda: self.controller.import_config_backup(Path(source)), self._import_config_finished, self._dashboard_text("busy_import"))
 
     def _restore_finished(self, report: RestoreReport) -> None:
-        QMessageBox.information(self, "Restore", "\n".join(action.message for action in report.actions))
+        QMessageBox.information(self, self._dashboard_text("restore_title"), "\n".join(action.message for action in report.actions))
         if self.controller.last_report:
             self.update_report(self.controller.last_report)
 
     def _rollback_finished(self, action) -> None:
-        QMessageBox.information(self, "Rollback Last Restore", action.message)
+        QMessageBox.information(self, self._dashboard_text("rollback_title"), action.message)
         if self.controller.last_report:
             self.update_report(self.controller.last_report)
 
     def _export_config_finished(self, path: Path) -> None:
         QMessageBox.information(
             self,
-            "Export Config Backup",
-            f"Configuration backup exported to:\n{path}\n\nStore this file in a cloud-synced folder before reinstalling Windows.",
+            self._dashboard_text("export_config_title"),
+            self._dashboard_text("export_config_done").format(path=path),
         )
 
     def _import_config_finished(self, backup_path: Path) -> None:
         QMessageBox.information(
             self,
-            "Import Config Backup",
-            f"Configuration imported. A local safety backup was created at:\n{backup_path}\n\nRun Restore if the check reports changed COM ports or joystick order.",
+            self._dashboard_text("import_config_title"),
+            self._dashboard_text("import_config_done").format(path=backup_path),
         )
         if self.controller.last_report:
             self.update_report(self.controller.last_report)
@@ -1193,11 +1297,22 @@ class MainWindow(QMainWindow):
         self.rollback_button.setText(self._dashboard_text("rollback"))
         self.export_config_button.setText(self._dashboard_text("export"))
         self.import_config_button.setText(self._dashboard_text("import"))
+        self.export_config_button.setToolTip(self._dashboard_text("export_config_tooltip"))
+        self.import_config_button.setToolTip(self._dashboard_text("import_config_tooltip"))
         self.logo_credit_label.setText(self._dashboard_text("logo_credit"))
+        self.language_eng_button.setToolTip(self._dashboard_text("language_en_tooltip"))
+        self.language_fr_button.setToolTip(self._dashboard_text("language_fr_tooltip"))
         self.usb_status_label.setText(self._dashboard_text("usb_health"))
         self.com_ports_panel_title.setText(self._dashboard_text("com_ports"))
         self._set_table_headers(self.device_table, self._dashboard_text("device_headers"))
         self._set_table_headers(self.joystick_table, self._dashboard_text("joystick_headers"))
+        if hasattr(self, "usb_table"):
+            self._set_table_headers(self.usb_table, self._dashboard_text("usb_health_headers"))
+        if hasattr(self, "refresh_logs_button"):
+            self.refresh_logs_button.setText(self._dashboard_text("refresh_logs"))
+            self.export_logs_button.setText(self._dashboard_text("export_logs"))
+            self.clear_logs_button.setText(self._dashboard_text("clear_logs"))
+        self._refresh_settings_texts()
         self.joystick_panel_title.setText(self._dashboard_text("joystick_order"))
         self.joystick_panel_subtitle.setText(self._dashboard_text("joystick_order_hint"))
         self.quick_log_panel_title.setText(self._dashboard_text("quick_log"))
@@ -1210,6 +1325,7 @@ class MainWindow(QMainWindow):
             self._update_status_icons(report)
             self._update_summary(report)
             self._update_quick_log(report)
+            self._update_usb(report)
         else:
             self._clear_layout(self.summary_checklist_layout)
             self._set_icon_label(self.usb_status_icon, Severity.INFO)
@@ -1221,6 +1337,44 @@ class MainWindow(QMainWindow):
             f'<a style="color: #ffffff; text-decoration: none;" href="{YOUTUBE_URL}">REALISTIC SIMCOCKPIT</a>'
         )
         self.footer_version_label.setText(f'| {self._dashboard_text("footer_version")} {__version__}')
+
+    def _refresh_settings_texts(self) -> None:
+        if not hasattr(self, "settings_form"):
+            return
+        form_labels = [
+            (self.profile_input, "active_profile"),
+            (self.ffb_threshold, "ffb_threshold"),
+            (self.notifications, "notifications"),
+            (self.launch_startup, "launch_startup"),
+            (self.auto_restore, "auto_restore"),
+            (self.simhub_required, "simhub_required"),
+            (self.deep_windows_scan, "deep_windows_scan"),
+            (self.software_scan_interval, "software_scan_cache"),
+            (self.usb_health_scan_interval, "usb_health_cache"),
+            (self.theme_select, "theme"),
+            (self.language_select, "language"),
+        ]
+        for field, key in form_labels:
+            label = self.settings_form.labelForField(field)
+            if isinstance(label, QLabel):
+                label.setText(self._dashboard_text(key))
+        current_theme = self.theme_select.currentData() or self.theme_select.currentText()
+        self.theme_select.blockSignals(True)
+        self.theme_select.clear()
+        for value, label in self._dashboard_text("theme_labels").items():
+            self.theme_select.addItem(label, value)
+        self._set_combo_data(self.theme_select, str(current_theme))
+        self.theme_select.blockSignals(False)
+        self.save_settings_button.setText(self._dashboard_text("save_settings"))
+        self.priority_label.setText(self._dashboard_text("device_priority"))
+        self._set_table_headers(self.priority_table, self._dashboard_text("priority_headers"))
+
+    @staticmethod
+    def _set_combo_data(combo: QComboBox, data: str) -> None:
+        for index in range(combo.count()):
+            if combo.itemData(index) == data or combo.itemText(index) == data:
+                combo.setCurrentIndex(index)
+                return
 
     def _set_language(self, language: str) -> None:
         if language not in DASHBOARD_TEXT:
@@ -1272,14 +1426,15 @@ class MainWindow(QMainWindow):
 
     def _device_table_cell_double_clicked(self, row: int, column: int) -> None:
         if column == 1:
-            self._edit_device_role(row)
+            cell_rect = self.device_table.visualRect(self.device_table.model().index(row, column))
+            self._edit_device_role(row, self.device_table.viewport().mapToGlobal(cell_rect.center()))
 
     def _device_table_context_requested(self, position) -> None:
         index = self.device_table.indexAt(position)
         if index.isValid() and index.column() == 1:
-            self._edit_device_role(index.row())
+            self._edit_device_role(index.row(), self.device_table.viewport().mapToGlobal(position))
 
-    def _edit_device_role(self, row: int) -> None:
+    def _edit_device_role(self, row: int, global_position=None) -> None:
         item = self.device_table.item(row, 1)
         if item is None:
             return
@@ -1287,9 +1442,17 @@ class MainWindow(QMainWindow):
         if not device_id:
             return
         current = item.text()
-        role, accepted = QInputDialog.getText(self, "Edit Role", "Role:", QLineEdit.EchoMode.Normal, current)
-        if not accepted:
+        dialog = QInputDialog(self)
+        dialog.setWindowTitle(self._dashboard_text("edit_role_title"))
+        dialog.setLabelText(self._dashboard_text("edit_role_label"))
+        dialog.setTextEchoMode(QLineEdit.EchoMode.Normal)
+        dialog.setTextValue(current)
+        dialog.resize(260, dialog.sizeHint().height())
+        if global_position is not None:
+            dialog.move(global_position)
+        if not dialog.exec():
             return
+        role = dialog.textValue()
         role = " ".join(role.strip().split())
         if not role:
             return
@@ -1359,8 +1522,7 @@ class MainWindow(QMainWindow):
             row = self.joystick_table.rowCount()
             self.joystick_table.insertRow(row)
             device = devices_by_name.get(name.lower())
-            windows_order = device.hid.joystick_order if device and device.hid and device.hid.joystick_order else index
-            self.joystick_table.setItem(row, 0, self._table_item(str(windows_order)))
+            self.joystick_table.setItem(row, 0, self._table_item(str(index)))
             self.joystick_table.setItem(row, 1, self._table_item(name))
             self.joystick_table.setItem(row, 2, self._table_item(saved_positions.get(name.lower(), "-")))
             self.joystick_table.setItem(row, 3, self._table_item(self._usb_summary(device)))
@@ -1535,12 +1697,12 @@ class MainWindow(QMainWindow):
                 widget.deleteLater()
 
     def _update_usb(self, report: CheckReport) -> None:
-        self.usb_score.setText(f"Stability score: {report.usb_health.stability_score}")
+        self.usb_score.setText(self._dashboard_text("usb_health_score").format(score=report.usb_health.stability_score))
         self.usb_table.setRowCount(0)
         for event in report.usb_health.events:
             row = self.usb_table.rowCount()
             self.usb_table.insertRow(row)
-            for column, value in enumerate([event.timestamp, event.severity.value, event.device_name, event.message]):
+            for column, value in enumerate([event.timestamp, self._severity_text(event.severity), event.device_name, event.message]):
                 self.usb_table.setItem(row, column, self._table_item(value))
 
     def save_settings(self) -> None:
@@ -1550,7 +1712,7 @@ class MainWindow(QMainWindow):
             notifications_enabled=self.notifications.isChecked(),
             launch_at_startup=self.launch_startup.isChecked(),
             auto_restore=self.auto_restore.isChecked(),
-            theme=self.theme_select.currentText(),
+            theme=str(self.theme_select.currentData() or self.theme_select.currentText()),
             language=self.language_select.currentText(),
             simhub_required=self.simhub_required.isChecked(),
             deep_windows_scan=self.deep_windows_scan.isChecked(),
@@ -1563,7 +1725,7 @@ class MainWindow(QMainWindow):
         self.apply_theme()
         self._refresh_dashboard_texts()
         self._update_language_buttons()
-        QMessageBox.information(self, "Settings", "Settings saved.")
+        QMessageBox.information(self, self._dashboard_text("settings"), self._dashboard_text("settings_saved"))
 
     def _load_priority_table(self) -> None:
         if not hasattr(self, "priority_table"):
@@ -1572,7 +1734,7 @@ class MainWindow(QMainWindow):
         snapshot = self.controller.load_snapshot()
         if not snapshot:
             self.priority_table.insertRow(0)
-            self.priority_table.setItem(0, 0, QTableWidgetItem("No saved configuration yet"))
+            self.priority_table.setItem(0, 0, QTableWidgetItem(self._dashboard_text("no_saved_config")))
             self.priority_table.setItem(0, 1, QTableWidgetItem("-"))
             self.priority_table.setItem(0, 2, QTableWidgetItem("-"))
             return
@@ -1584,8 +1746,10 @@ class MainWindow(QMainWindow):
             self.priority_table.setItem(row, 0, id_item)
             self.priority_table.setItem(row, 1, QTableWidgetItem(self._device_role_text(device)))
             combo = QComboBox()
-            combo.addItems([Priority.REQUIRED.value, Priority.OPTIONAL.value, Priority.IGNORED.value])
-            combo.setCurrentText(device.priority.value)
+            priority_labels = self._dashboard_text("priority_labels")
+            for priority in (Priority.REQUIRED, Priority.OPTIONAL, Priority.IGNORED):
+                combo.addItem(priority_labels.get(priority, priority.value), priority.value)
+            self._set_combo_data(combo, device.priority.value)
             self.priority_table.setCellWidget(row, 2, combo)
 
     def _save_device_priorities(self) -> None:
@@ -1600,7 +1764,7 @@ class MainWindow(QMainWindow):
                 continue
             device_id = id_item.data(Qt.ItemDataRole.UserRole)
             if device_id:
-                priority_by_id[str(device_id)] = Priority(combo.currentText())
+                priority_by_id[str(device_id)] = Priority(str(combo.currentData() or combo.currentText()))
         if not priority_by_id:
             return
         for device in snapshot.devices:
@@ -1615,55 +1779,32 @@ class MainWindow(QMainWindow):
         else:
             self.logs_text.setPlainText("")
 
+    def clear_logs(self) -> None:
+        answer = QMessageBox.question(self, self._dashboard_text("clear_logs"), self._dashboard_text("clear_logs_confirm"))
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        self.controller.clear_logs()
+        self.logs_text.setPlainText("")
+        QMessageBox.information(self, self._dashboard_text("clear_logs"), self._dashboard_text("clear_logs_done"))
+
     def export_logs(self) -> None:
         default_path = self.controller.config.paths.exports / "cockpit_guardian.log"
-        target, _ = QFileDialog.getSaveFileName(self, "Export Logs", str(default_path), "Log files (*.log);;Text files (*.txt)")
+        target, _ = QFileDialog.getSaveFileName(
+            self,
+            self._dashboard_text("export_logs"),
+            str(default_path),
+            self._dashboard_text("log_file_filter"),
+        )
         if target:
             self.controller.config.export_logs(Path(target))
-            QMessageBox.information(self, "Export Logs", f"Logs exported to {target}.")
+            QMessageBox.information(
+                self,
+                self._dashboard_text("export_logs"),
+                self._dashboard_text("logs_exported").format(path=target),
+            )
 
     def refresh_advanced(self) -> None:
-        self.advanced_tree.clear()
-        snapshot = self.controller.load_snapshot()
-        root = QTreeWidgetItem(["Data directory", str(self.controller.config.paths.root)])
-        self.advanced_tree.addTopLevelItem(root)
-        notices = QTreeWidgetItem(["Integration notices", "SimHub, Arduino, ESP, Windows, vendor apps"])
-        for notice in INTEGRATION_NOTICES:
-            notices.addChild(QTreeWidgetItem([notice.title, notice.body]))
-        self.advanced_tree.addTopLevelItem(notices)
-        if self.controller.last_report:
-            telemetry = QTreeWidgetItem(["Telemetry", self.controller.last_report.telemetry.message])
-            for key, value in to_plain(self.controller.last_report.telemetry).items():
-                telemetry.addChild(QTreeWidgetItem([key, str(value)]))
-            self.advanced_tree.addTopLevelItem(telemetry)
-        if snapshot:
-            snap = QTreeWidgetItem(["Snapshot", snapshot.snapshot_date])
-            snap.addChild(QTreeWidgetItem(["Profile", snapshot.profile_name]))
-            snap.addChild(QTreeWidgetItem(["App version", snapshot.app_version]))
-            for device in snapshot.devices:
-                node = QTreeWidgetItem([device.label, device.bus.value])
-                node.addChild(QTreeWidgetItem(["Priority", device.priority.value]))
-                node.addChild(QTreeWidgetItem(["Kind", device.kind.value]))
-                if device.serial:
-                    serial = QTreeWidgetItem(["Serial / COM", device.serial.current_com or ""])
-                    for key, value in to_plain(device.serial).items():
-                        serial.addChild(QTreeWidgetItem([key, str(value)]))
-                    node.addChild(serial)
-                if device.hid:
-                    hid = QTreeWidgetItem(["HID / DirectInput", device.hid.name or ""])
-                    for key, value in to_plain(device.hid).items():
-                        hid.addChild(QTreeWidgetItem([key, str(value)]))
-                    node.addChild(hid)
-                if device.usb:
-                    usb = QTreeWidgetItem(["USB", device.usb.label])
-                    for key, value in to_plain(device.usb).items():
-                        usb.addChild(QTreeWidgetItem([key, str(value)]))
-                    node.addChild(usb)
-                snap.addChild(node)
-            self.advanced_tree.addTopLevelItem(snap)
-        else:
-            self.advanced_tree.addTopLevelItem(QTreeWidgetItem(["Snapshot", "Not saved yet"]))
-        self.advanced_tree.expandToDepth(1)
+        return
 
     def show_and_raise(self) -> None:
         self.show()

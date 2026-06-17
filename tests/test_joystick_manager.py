@@ -56,3 +56,20 @@ def test_restore_refuses_missing_current_joystick(monkeypatch, tmp_path):
 def test_decode_joystick_id_accepts_binary_and_dword():
     assert JoystickOrderManager._decode_joystick_id((7).to_bytes(4, "little")) == 7
     assert JoystickOrderManager._decode_joystick_id(3) == 3
+
+
+def test_read_current_order_ignores_hid_without_directinput_order():
+    manager = JoystickOrderManager()
+    devices = [
+        _hid("Wheel", "1234", "0001", 2),
+        CockpitDevice(
+            id="ambient",
+            display_name="Ambilight HID",
+            kind=DeviceKind.AMBILIGHT,
+            bus=DeviceBus.HID,
+            hid=HidIdentity(name="Ambilight HID", vid="2345", pid="0002", joystick_order=None),
+        ),
+        _hid("Pedals", "1234", "0003", 1),
+    ]
+
+    assert manager.read_current_order(devices) == ["Pedals", "Wheel"]

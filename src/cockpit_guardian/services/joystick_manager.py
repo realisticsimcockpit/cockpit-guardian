@@ -33,7 +33,11 @@ class JoystickOrderManager:
     """Reads and restores Windows DirectInput controller order."""
 
     def read_current_order(self, devices: list[CockpitDevice]) -> list[str]:
-        hid_devices = [device for device in devices if device.bus == DeviceBus.HID and device.hid]
+        hid_devices = [
+            device
+            for device in devices
+            if device.bus == DeviceBus.HID and device.hid and device.hid.joystick_order is not None
+        ]
         return [
             device.label
             for device in sorted(hid_devices, key=lambda item: item.hid.joystick_order or 9999)
