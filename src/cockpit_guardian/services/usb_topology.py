@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ..models import CockpitDevice, UsbConnectionInfo, utc_now_iso
 from .integration_notices import generic_usb_serial_bridge_name, normalize_usb_id
-from .usb_speed_scanner import UsbSpeedRecord, UsbSpeedScanner
+from .usb_speed_scanner import UsbSpeedRecord, scan_usb_speed_records
 from .windows_util import is_windows, run_powershell_json
 
 
@@ -90,7 +90,13 @@ class UsbTopologyDetector:
                 self._speed_records = cached
                 self._speed_cache_loaded = True
                 return list(self._speed_records)
-        records = UsbSpeedScanner().scan()
+        records = scan_usb_speed_records()
+        if records is None:
+            cached = self._load_speed_cache()
+            if cached:
+                self._speed_records = cached
+                self._speed_cache_loaded = True
+            return list(self._speed_records)
         self._speed_records = list(records)
         self._speed_cache_loaded = True
         if records:

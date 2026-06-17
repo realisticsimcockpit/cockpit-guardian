@@ -24,7 +24,7 @@ SEVERITY_COLORS = {
 def app_stylesheet(theme: str = "dark") -> str:
     if theme == "light":
         return """
-        QWidget { color: #f8fafc; font-size: 11px; }
+        QWidget { color: #f8fafc; font-family: "Segoe UI Variable Text", "Aptos", "Inter", "Segoe UI", sans-serif; font-size: 11px; }
         QLabel { background: transparent; }
         QWidget#AppBackground { background: #000000; }
         QFrame#DashboardHeader { background: transparent; border: 0; }
@@ -56,7 +56,7 @@ def app_stylesheet(theme: str = "dark") -> str:
         QTableWidget { alternate-background-color: rgba(18, 18, 18, 220); }
         QTableWidget::item { padding-left: 2px; }
         QTableWidget::item:selected, QTreeWidget::item:selected { background: rgba(185, 28, 28, 150); color: #ffffff; }
-        QHeaderView::section { background: rgba(0, 0, 0, 235); color: #f8fafc; font-weight: 800; padding: 2px 3px 2px 4px; border: 0; border-right: 1px solid rgba(255, 255, 255, 185); text-align: left; }
+        QHeaderView::section { background: rgba(0, 0, 0, 235); color: #f8fafc; font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; padding: 2px 3px 2px 4px; border: 0; border-right: 1px solid rgba(255, 255, 255, 185); text-align: left; }
         QScrollBar:vertical { background: rgba(0, 0, 0, 120); width: 8px; margin: 0; }
         QScrollBar::handle:vertical { background: rgba(148, 163, 184, 150); min-height: 22px; border-radius: 4px; }
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
@@ -69,7 +69,7 @@ def app_stylesheet(theme: str = "dark") -> str:
         QMessageBox QPushButton:hover, QDialog QPushButton:hover { background: rgba(25, 25, 25, 245); border-color: rgba(220, 38, 38, 220); }
         """
     return """
-    QWidget { color: #e5e7eb; font-size: 11px; }
+    QWidget { color: #e5e7eb; font-family: "Segoe UI Variable Text", "Aptos", "Inter", "Segoe UI", sans-serif; font-size: 11px; }
     QLabel { background: transparent; }
     QWidget#AppBackground { background: #000000; }
     QFrame#DashboardHeader { background: transparent; border: 0; }
@@ -102,7 +102,7 @@ def app_stylesheet(theme: str = "dark") -> str:
     QTableWidget { alternate-background-color: rgba(18, 18, 18, 220); }
     QTableWidget::item { padding-left: 2px; }
     QTableWidget::item:selected, QTreeWidget::item:selected { background: rgba(185, 28, 28, 150); color: #ffffff; }
-    QHeaderView::section { background: rgba(0, 0, 0, 235); font-weight: 800; padding: 2px 3px 2px 4px; border: 0; border-right: 1px solid rgba(255, 255, 255, 185); text-align: left; }
+    QHeaderView::section { background: rgba(0, 0, 0, 235); font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; padding: 2px 3px 2px 4px; border: 0; border-right: 1px solid rgba(255, 255, 255, 185); text-align: left; }
     QScrollBar:vertical { background: rgba(0, 0, 0, 120); width: 8px; margin: 0; }
     QScrollBar::handle:vertical { background: rgba(148, 163, 184, 150); min-height: 22px; border-radius: 4px; }
     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }

@@ -1,6 +1,7 @@
 import unittest
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 from cockpit_guardian.models import CockpitDevice, DeviceBus, HidIdentity
 from cockpit_guardian.services.usb_speed_scanner import UsbSpeedRecord
@@ -80,6 +81,30 @@ class UsbTopologyTests(unittest.TestCase):
             self.assertEqual(device.usb.label, "USB Full-Speed")
             self.assertEqual(device.usb.negotiated_speed_mbps, 12)
             self.assertEqual(device.usb.source, "USB hub speed scan")
+
+    def test_speed_scan_failure_keeps_existing_cache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "usb_speed_cache.json"
+            detector = UsbTopologyDetector(speed_cache_path=cache)
+            detector._save_speed_cache(
+                [
+                    UsbSpeedRecord(
+                        vid="303A",
+                        pid="8331",
+                        label="USB Full-Speed",
+                        usb_generation="USB 1.1",
+                        negotiated_speed_mbps=12,
+                        hub_path="hub",
+                        port=1,
+                    )
+                ]
+            )
+
+            with patch("cockpit_guardian.services.usb_topology.scan_usb_speed_records", return_value=None):
+                records = detector.ensure_speed_cache(force=True)
+
+            self.assertEqual(len(records), 1)
+            self.assertEqual(records[0].vid_pid, "303A:8331")
 
 
 if __name__ == "__main__":

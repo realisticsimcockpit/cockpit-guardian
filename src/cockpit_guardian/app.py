@@ -28,6 +28,7 @@ from .services.restore_engine import RestoreEngine
 from .services.software_detector import SoftwareDetector
 from .services.telemetry import TelemetryService
 from .services.usb_health import UsbHealthMonitor
+from .services.usb_speed_scanner import USB_SPEED_SCAN_HELPER_ARG, run_usb_speed_scan_helper
 from .services.usb_topology import UsbTopologyDetector
 from .ui.assets import asset_icon, asset_path
 from .ui.main_window import MainWindow
@@ -211,6 +212,8 @@ def build_controller(status_callback=None) -> AppController:
 
 
 def main() -> int:
+    if USB_SPEED_SCAN_HELPER_ARG in sys.argv:
+        return run_usb_speed_scan_helper()
     app = QApplication(sys.argv)
     fusion = QStyleFactory.create("Fusion")
     if fusion is not None:

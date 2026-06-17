@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import ctypes
+import json
+import subprocess
+import sys
 from dataclasses import dataclass
 from ctypes import wintypes
+from pathlib import Path
 
-from .windows_util import is_windows
+from .windows_util import hidden_subprocess_kwargs, is_windows
 
 
 def _ctl_code(device_type: int, function: int, method: int = 0, access: int = 0) -> int:
@@ -30,6 +34,8 @@ USB_SPEEDS = {
     2: ("USB High-Speed", "USB 2.0", 480),
     3: ("USB SuperSpeed", "USB 3.x", 5000),
 }
+USB_SPEED_SCAN_HELPER_ARG = "--cockpit-guardian-usb-speed-helper"
+USB_SPEED_SCAN_TIMEOUT_SECONDS = 8.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +93,51 @@ class UsbSpeedRecord:
             source=str(data.get("source") or "USB hub speed scan"),
             note=str(data.get("note") or "Speed read from Windows USB hub IOCTLs."),
         )
+
+
+def scan_usb_speed_records(timeout_seconds: float = USB_SPEED_SCAN_TIMEOUT_SECONDS) -> list[UsbSpeedRecord] | None:
+    if not is_windows():
+        return []
+    try:
+        completed = subprocess.run(
+            _helper_command(),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_seconds,
+            check=False,
+            **hidden_subprocess_kwargs(),
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        data = json.loads(completed.stdout or "[]")
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, list):
+        return None
+    records = [UsbSpeedRecord.from_dict(item) for item in data if isinstance(item, dict)]
+    return [record for record in records if record is not None]
+
+
+def run_usb_speed_scan_helper() -> int:
+    records = UsbSpeedScanner().scan()
+    sys.stdout.write(json.dumps([record.to_dict() for record in records], ensure_ascii=False))
+    return 0
+
+
+def _helper_command() -> list[str]:
+    executable = Path(sys.executable)
+    if executable.name.lower() in {"cockpitguardian.exe", "cockpit-guardian.exe"} or getattr(sys, "frozen", False):
+        return [str(executable), USB_SPEED_SCAN_HELPER_ARG]
+    return [
+        str(executable),
+        "-c",
+        "from cockpit_guardian.services.usb_speed_scanner import run_usb_speed_scan_helper; raise SystemExit(run_usb_speed_scan_helper())",
+    ]
 
 
 class GUID(ctypes.Structure):

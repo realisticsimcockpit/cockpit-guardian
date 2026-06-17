@@ -1123,6 +1123,24 @@ class MainWindow(QMainWindow):
         self._busy_operations += 1
         thread.start()
 
+    def _run_background_async(self, fn, callback=None) -> None:
+        thread = QThread(self)
+        worker = Worker(fn)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        if callback is not None:
+            worker.finished.connect(callback)
+        worker.failed.connect(lambda message: self.controller.logger.warning("Background operation failed: %s", message))
+        worker.finished.connect(thread.quit)
+        worker.failed.connect(thread.quit)
+        worker.finished.connect(worker.deleteLater)
+        worker.failed.connect(worker.deleteLater)
+        thread.finished.connect(lambda: self._finish_background_thread(thread))
+        thread.finished.connect(thread.deleteLater)
+        self._threads.append(thread)
+        self._workers[thread] = worker
+        thread.start()
+
     def _finish_thread(self, thread: QThread) -> None:
         self._busy_operations = max(0, self._busy_operations - 1)
         self._set_busy(self._busy_operations > 0)
@@ -1131,6 +1149,11 @@ class MainWindow(QMainWindow):
         self._workers.pop(thread, None)
         if self._busy_operations == 0:
             self._complete_busy_overlay()
+
+    def _finish_background_thread(self, thread: QThread) -> None:
+        if thread in self._threads:
+            self._threads.remove(thread)
+        self._workers.pop(thread, None)
 
     def _set_busy(self, busy: bool) -> None:
         for button in [
@@ -1200,11 +1223,14 @@ class MainWindow(QMainWindow):
         if self._busy_operations > 0:
             QTimer.singleShot(1000, self._initial_usb_speed_scan)
             return
-        self._run_async(
-            lambda: self.controller.scan_usb_speeds(force=False),
-            lambda count: self._usb_speed_scan_finished(count, show_message=False),
-            self._dashboard_text("busy_usb_speed_scan"),
+        self._run_background_async(
+            lambda: self.controller.refresh_usb_speed_cache(force=False),
+            lambda count: self._background_usb_cache_finished(count, refresh_report=True),
         )
+
+    def _background_usb_cache_finished(self, _count: int, refresh_report: bool = False) -> None:
+        if refresh_report and self.controller.last_report:
+            self._run_background_async(self.controller.check_now, self.update_report)
 
     def _poll_game_controllers(self) -> None:
         signature = self.controller.game_controller_signature()
@@ -1217,10 +1243,9 @@ class MainWindow(QMainWindow):
         if self._busy_operations > 0:
             self.device_change_rescan_timer.start(1000)
             return
-        self._run_async(
+        self._run_background_async(
             lambda: self.controller.scan_usb_speeds(force=True),
             lambda count: self._usb_speed_scan_finished(count, show_message=False),
-            self._dashboard_text("busy_usb_speed_scan"),
         )
 
     def rollback(self) -> None:

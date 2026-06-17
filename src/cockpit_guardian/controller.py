@@ -190,11 +190,15 @@ class AppController:
         return snapshot
 
     def scan_usb_speeds(self, force: bool = True) -> int:
+        count = self.refresh_usb_speed_cache(force=force)
+        self.last_report = self.check_now()
+        return count
+
+    def refresh_usb_speed_cache(self, force: bool = True) -> int:
         if not hasattr(self.detector, "scan_usb_speeds"):
             return 0
         count = self.detector.scan_usb_speeds(force=force)
         self.logger.info("USB speed scan cached %d records", count)
-        self.last_report = self.check_now()
         return count
 
     def game_controller_signature(self) -> tuple[str, ...]:
