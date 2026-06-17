@@ -36,11 +36,13 @@ class JoystickOrderManager:
         hid_devices = [
             device
             for device in devices
-            if device.bus == DeviceBus.HID and device.hid and device.hid.joystick_order is not None
+            if device.bus == DeviceBus.HID
+            and device.hid
+            and (device.hid.game_controller_order is not None or device.hid.joystick_order is not None)
         ]
         return [
             device.label
-            for device in sorted(hid_devices, key=lambda item: item.hid.joystick_order or 9999)
+            for device in sorted(hid_devices, key=lambda item: item.hid.game_controller_order or item.hid.joystick_order or 9999)
         ]
 
     def compare(self, expected: list[str], current: list[str]) -> JoystickOrderResult:

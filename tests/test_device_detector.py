@@ -67,7 +67,9 @@ class DeviceDetectorTests(unittest.TestCase):
         def oem_name(vid, pid):
             return {("044F", "B687"): "TWCS Throttle", ("044F", "B10A"): "T.16000M"}[(vid, pid)]
 
-        with patch.object(DeviceDetector, "_read_winmm_joysticks", return_value=winmm_rows), patch.object(
+        with patch.object(DeviceDetector, "_read_directinput_joysticks", return_value=[]), patch.object(
+            DeviceDetector, "_read_winmm_joysticks", return_value=winmm_rows
+        ), patch.object(
             DeviceDetector, "_windows_joystick_pnp_rows", return_value=pnp_rows
         ), patch.object(DeviceDetector, "_joystick_oem_name", side_effect=oem_name), patch(
             "cockpit_guardian.services.device_detector.run_powershell_json", return_value=[]
@@ -77,6 +79,28 @@ class DeviceDetectorTests(unittest.TestCase):
         self.assertEqual([device.display_name for device in devices], ["TWCS Throttle", "T.16000M"])
         self.assertEqual([device.hid.joystick_order for device in devices if device.hid], [2, 3])
         self.assertEqual(devices[0].hid.device_instance_id, "HID\\VID_044F&PID_B687\\A")
+
+    def test_directinput_order_matches_game_controllers_while_keeping_winmm_slot(self):
+        detector = DeviceDetector()
+        directinput_rows = [
+            {"index": 0, "name": "Saitek Pro Flight Yoke", "vid": "06A3", "pid": "0BAC", "game_controller_order": 1, "game_controller_name": "Saitek Pro Flight Yoke"},
+            {"index": 1, "name": "TWCS Throttle", "vid": "044F", "pid": "B687", "game_controller_order": 2, "game_controller_name": "TWCS Throttle"},
+        ]
+        winmm_rows = [
+            {"index": 0, "name": "Microsoft PC-joystick driver", "vid": "044F", "pid": "B687"},
+            {"index": 4, "name": "Microsoft PC-joystick driver", "vid": "06A3", "pid": "0BAC"},
+        ]
+
+        with patch.object(DeviceDetector, "_read_directinput_joysticks", return_value=directinput_rows), patch.object(
+            DeviceDetector, "_read_winmm_joysticks", return_value=winmm_rows
+        ), patch.object(DeviceDetector, "_windows_joystick_pnp_rows", return_value=[]), patch(
+            "cockpit_guardian.services.device_detector.run_powershell_json", return_value=[]
+        ):
+            devices = detector.detect_hid_devices(cache_ttl_seconds=0)
+
+        self.assertEqual([device.label for device in devices], ["Saitek Pro Flight Yoke", "TWCS Throttle"])
+        self.assertEqual([device.hid.game_controller_order for device in devices], [1, 2])
+        self.assertEqual([device.hid.joystick_order for device in devices], [5, 1])
 
     def test_supplemental_hid_devices_do_not_get_fake_joystick_order(self):
         detector = DeviceDetector()
@@ -88,7 +112,9 @@ class DeviceDetectorTests(unittest.TestCase):
             }
         ]
 
-        with patch.object(DeviceDetector, "_read_winmm_joysticks", return_value=[]), patch.object(
+        with patch.object(DeviceDetector, "_read_directinput_joysticks", return_value=[]), patch.object(
+            DeviceDetector, "_read_winmm_joysticks", return_value=[]
+        ), patch.object(
             DeviceDetector, "_windows_joystick_pnp_rows", return_value=[]
         ), patch("cockpit_guardian.services.device_detector.run_powershell_json", return_value=hid_rows):
             devices = detector.detect_hid_devices(cache_ttl_seconds=0)

@@ -11,6 +11,7 @@ from typing import Any
 
 from ..models import CockpitDevice, DeviceBus, DeviceKind, HidIdentity, SerialIdentity, UsbConnectionInfo
 from .device_catalog import DeviceCatalog
+from .directinput import read_directinput_game_controllers
 from .integration_notices import ARDUINO_VIDS, ESPRESSIF_VIDS, generic_usb_serial_bridge_name, normalize_usb_id
 from .usb_topology import UsbTopologyDetector
 from .windows_util import is_windows, parse_vid_pid, run_powershell_json
@@ -154,7 +155,7 @@ class DeviceDetector:
         if self._hid_cache and now - self._hid_cache_at <= max(0, cache_ttl_seconds):
             return list(self._hid_cache)
         joystick_pnp_rows = self._windows_joystick_pnp_rows()
-        devices = self._detect_winmm_joysticks(joystick_pnp_rows)
+        devices = self._detect_game_controllers(joystick_pnp_rows)
         known_instance_ids = {
             device.hid.device_instance_id.upper()
             for device in devices
@@ -203,8 +204,13 @@ class DeviceDetector:
         self._hid_cache_at = now
         return devices
 
-    def _detect_winmm_joysticks(self, pnp_rows: list[dict[str, Any]] | None = None) -> list[CockpitDevice]:
-        rows = self._read_winmm_joysticks()
+    def _detect_game_controllers(self, pnp_rows: list[dict[str, Any]] | None = None) -> list[CockpitDevice]:
+        winmm_rows = self._read_winmm_joysticks()
+        directinput_rows = self._read_directinput_joysticks()
+        rows = self._merge_directinput_and_winmm_rows(directinput_rows, winmm_rows) if directinput_rows else [
+            {**row, "game_controller_order": int(row["index"]) + 1, "game_controller_name": row.get("name"), "joystick_index": row["index"]}
+            for row in winmm_rows
+        ]
         if not rows:
             return []
         pnp_by_vid_pid: dict[tuple[str, str], list[dict[str, Any]]] = {}
@@ -238,13 +244,17 @@ class DeviceDetector:
             catalog_match = self._catalog.match(name, vid, pid)
             if catalog_match and catalog_match.name and self._is_generic_device_name(name):
                 name = catalog_match.name
-            order = int(row["index"]) + 1
+            joystick_index = row.get("joystick_index")
+            order = int(joystick_index) + 1 if joystick_index is not None else None
+            game_controller_order = int(row.get("game_controller_order") or int(row["index"]) + 1)
             identity = HidIdentity(
                 name=name,
                 vid=vid,
                 pid=pid,
                 device_instance_id=instance_id,
                 joystick_order=order,
+                game_controller_order=game_controller_order,
+                game_controller_name=row.get("game_controller_name") or name,
             )
             devices.append(
                 CockpitDevice(
@@ -256,6 +266,47 @@ class DeviceDetector:
                 )
             )
         return devices
+
+    @staticmethod
+    def _read_directinput_joysticks() -> list[dict[str, Any]]:
+        return [
+            {
+                "index": item.order - 1,
+                "name": item.product_name or item.instance_name,
+                "vid": item.vid,
+                "pid": item.pid,
+                "game_controller_order": item.order,
+                "game_controller_name": item.product_name or item.instance_name,
+                "directinput_instance_guid": item.instance_guid,
+            }
+            for item in read_directinput_game_controllers()
+        ]
+
+    @staticmethod
+    def _merge_directinput_and_winmm_rows(
+        directinput_rows: list[dict[str, Any]],
+        winmm_rows: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        winmm_by_vid_pid: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        for row in winmm_rows:
+            vid = normalize_usb_id(row.get("vid"))
+            pid = normalize_usb_id(row.get("pid"))
+            if vid and pid:
+                winmm_by_vid_pid.setdefault((vid, pid), []).append(row)
+
+        merged: list[dict[str, Any]] = []
+        for row in directinput_rows:
+            item = dict(row)
+            vid = normalize_usb_id(row.get("vid"))
+            pid = normalize_usb_id(row.get("pid"))
+            winmm_match = None
+            if vid and pid:
+                candidates = winmm_by_vid_pid.get((vid, pid), [])
+                if candidates:
+                    winmm_match = candidates.pop(0)
+            item["joystick_index"] = winmm_match.get("index") if winmm_match else None
+            merged.append(item)
+        return merged
 
     @staticmethod
     def _read_winmm_joysticks() -> list[dict[str, Any]]:

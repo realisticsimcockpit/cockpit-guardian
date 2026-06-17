@@ -11,7 +11,9 @@ class PerformanceCacheTests(unittest.TestCase):
         rows = [{"FriendlyName": "Simagic Alpha", "InstanceId": "HID\\VID_0483&PID_A355\\1"}]
         detector = DeviceDetector()
 
-        with patch.object(DeviceDetector, "_read_winmm_joysticks", return_value=[]), patch(
+        with patch.object(DeviceDetector, "_read_directinput_joysticks", return_value=[]), patch.object(
+            DeviceDetector, "_read_winmm_joysticks", return_value=[]
+        ), patch(
             "cockpit_guardian.services.device_detector.run_powershell_json", return_value=rows
         ) as powershell:
             first = detector.detect_hid_devices(cache_ttl_seconds=60)

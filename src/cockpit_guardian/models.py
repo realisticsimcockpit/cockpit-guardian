@@ -95,6 +95,8 @@ class HidIdentity:
     serial_number: str | None = None
     device_instance_id: str | None = None
     joystick_order: int | None = None
+    game_controller_order: int | None = None
+    game_controller_name: str | None = None
 
 
 @dataclass(slots=True)

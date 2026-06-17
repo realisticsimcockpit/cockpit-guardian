@@ -73,3 +73,13 @@ def test_read_current_order_ignores_hid_without_directinput_order():
     ]
 
     assert manager.read_current_order(devices) == ["Pedals", "Wheel"]
+
+
+def test_read_current_order_prefers_game_controller_order():
+    manager = JoystickOrderManager()
+    saitek = _hid("Saitek Pro Flight Yoke", "06A3", "0BAC", 5)
+    twcs = _hid("TWCS Throttle", "044F", "B687", 1)
+    saitek.hid.game_controller_order = 1
+    twcs.hid.game_controller_order = 2
+
+    assert manager.read_current_order([twcs, saitek]) == ["Saitek Pro Flight Yoke", "TWCS Throttle"]
