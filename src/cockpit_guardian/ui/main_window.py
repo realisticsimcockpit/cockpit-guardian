@@ -118,8 +118,13 @@ DASHBOARD_TEXT = {
         "import_config_tooltip": "Import this backup after reinstalling Windows, then run Restore.",
         "device_headers": ["Device", "Role", "Status", "USB"],
         "joystick_order": "Joystick Order",
-        "joystick_order_hint": "Drag & drop to reorder",
+        "joystick_order_hint": "Use Up / Down to set desired order",
         "joystick_headers": ["Win #", "Joystick", "Saved #", "USB"],
+        "joystick_move_up": "Up",
+        "joystick_move_down": "Down",
+        "joystick_properties": "Properties",
+        "joystick_select_first": "Select a joystick first.",
+        "joystick_properties_failed": "Could not open joystick properties.",
         "usb_health": "USB",
         "usb_health_tab": "USB Health",
         "usb_health_score": "Stability score: {score}",
@@ -268,8 +273,13 @@ DASHBOARD_TEXT = {
         "import_config_tooltip": "Importez cette sauvegarde après une réinstallation de Windows, puis lancez Restaurer.",
         "device_headers": ["Périphérique", "Rôle", "Statut", "USB"],
         "joystick_order": "Ordre joysticks",
-        "joystick_order_hint": "Glisser-déposer pour réordonner",
+        "joystick_order_hint": "Utilisez Monter / Descendre pour choisir l'ordre souhaité",
         "joystick_headers": ["Win #", "Joystick", "Sauvé #", "USB"],
+        "joystick_move_up": "Monter",
+        "joystick_move_down": "Descendre",
+        "joystick_properties": "Propriétés",
+        "joystick_select_first": "Sélectionnez d'abord un joystick.",
+        "joystick_properties_failed": "Impossible d'ouvrir les propriétés du joystick.",
         "usb_health": "USB",
         "usb_health_tab": "Santé USB",
         "usb_health_score": "Score de stabilité : {score}",
@@ -451,70 +461,55 @@ class JoystickOrderTableWidget(SeparatorTableWidget):
 
     def __init__(self, rows: int, columns: int, parent: QWidget | None = None) -> None:
         super().__init__(rows, columns, parent)
-        self._drag_start_row = -1
-
-    def enable_row_reorder(self) -> None:
-        self.setDragEnabled(True)
-        self.setAcceptDrops(True)
-        self.setDropIndicatorShown(True)
-        self.setDragDropOverwriteMode(False)
-        self.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
-        self.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self.setDragEnabled(False)
+        self.setAcceptDrops(False)
+        self.setDropIndicatorShown(False)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.NoDragDrop)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt override
-        position = event.position().toPoint() if hasattr(event, "position") else event.pos()
-        self._drag_start_row = self.rowAt(position.y())
-        super().mousePressEvent(event)
-
-    def dropEvent(self, event) -> None:  # noqa: N802 - Qt override
-        if self._drag_start_row < 0:
-            super().dropEvent(event)
-            return
-        if self.rowCount() <= 1:
-            event.setDropAction(Qt.DropAction.MoveAction)
-            event.accept()
-            self._drag_start_row = -1
-            return
-        position = event.position().toPoint() if hasattr(event, "position") else event.pos()
-        target_row = self.indexAt(position).row()
-        if target_row < 0:
-            target_row = self.rowCount()
-        elif self.dropIndicatorPosition() == QAbstractItemView.DropIndicatorPosition.BelowItem:
-            target_row += 1
-        if target_row > self._drag_start_row:
-            target_row -= 1
-        target_row = max(0, min(target_row, self.rowCount() - 1))
-        if target_row != self._drag_start_row:
-            self._move_row(self._drag_start_row, target_row)
-            self.order_changed.emit(self.current_order())
-        event.setDropAction(Qt.DropAction.MoveAction)
-        event.accept()
-        self._drag_start_row = -1
+    def move_current_row(self, delta: int) -> bool:
+        source_row = self.currentRow()
+        if source_row < 0 or source_row >= self.rowCount():
+            return False
+        if self.item(source_row, 0) and self.item(source_row, 0).text() == "-":
+            return False
+        target_row = max(0, min(source_row + delta, self.rowCount() - 1))
+        if target_row == source_row:
+            return True
+        self._move_row(source_row, target_row)
+        self.order_changed.emit(self.current_order())
+        return True
 
     def _move_row(self, source_row: int, target_row: int) -> None:
-        rows = self._row_values()
+        rows = self._row_items()
         if source_row < 0 or source_row >= len(rows):
             return
-        row_values = rows.pop(source_row)
+        row_items = rows.pop(source_row)
         target_row = max(0, min(target_row, len(rows)))
-        rows.insert(target_row, row_values)
+        rows.insert(target_row, row_items)
         self.setRowCount(0)
         for values in rows:
             row = self.rowCount()
             self.insertRow(row)
-            for column, value in enumerate(values):
-                item = QTableWidgetItem(value)
-                item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            for column, item in enumerate(values):
                 self.setItem(row, column, item)
         self.setCurrentCell(target_row, 0)
 
-    def _row_values(self) -> list[list[str]]:
-        return [
-            [self.item(row, column).text() if self.item(row, column) else "" for column in range(self.columnCount())]
-            for row in range(self.rowCount())
-        ]
+    def _row_items(self) -> list[list[QTableWidgetItem]]:
+        rows = []
+        for row in range(self.rowCount()):
+            values = []
+            for column in range(self.columnCount()):
+                item = self.item(row, column)
+                if item is None:
+                    item = QTableWidgetItem("")
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                else:
+                    item = item.clone()
+                values.append(item)
+            rows.append(values)
+        return rows
 
     def current_order(self) -> list[str]:
         return [
@@ -686,7 +681,16 @@ class MainWindow(QMainWindow):
         self.tray.show()
 
         self.apply_theme()
+        self._game_controller_signature = self.controller.game_controller_signature()
+        self.device_watch_timer = QTimer(self)
+        self.device_watch_timer.setInterval(1500)
+        self.device_watch_timer.timeout.connect(self._poll_game_controllers)
+        self.device_watch_timer.start()
+        self.device_change_rescan_timer = QTimer(self)
+        self.device_change_rescan_timer.setSingleShot(True)
+        self.device_change_rescan_timer.timeout.connect(self._auto_scan_usb_after_device_change)
         QTimer.singleShot(250, self.check_now)
+        QTimer.singleShot(1200, self._initial_usb_speed_scan)
 
     def apply_theme(self) -> None:
         QApplication.instance().setStyleSheet(app_stylesheet(self.settings.theme))
@@ -735,6 +739,7 @@ class MainWindow(QMainWindow):
         table.setShowGrid(True)
         table.setGridStyle(Qt.PenStyle.SolidLine)
         table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
     @staticmethod
     def _set_table_headers(table: QTableWidget, labels: list[str]) -> None:
@@ -917,9 +922,30 @@ class MainWindow(QMainWindow):
         self.joystick_table = JoystickOrderTableWidget(0, 4)
         self._set_table_headers(self.joystick_table, ["Win #", "Joystick", "Saved #", "USB"])
         self._configure_table(self.joystick_table)
-        self.joystick_table.enable_row_reorder()
+        self.joystick_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.joystick_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.joystick_table.order_changed.connect(self._joystick_order_changed)
-        self.joystick_panel = self._panel("Joystick Order", self.joystick_table, subtitle=self._dashboard_text("joystick_order_hint"))
+        self.joystick_table.cellDoubleClicked.connect(lambda row, _column: self.open_selected_joystick_properties(row))
+        joystick_content = QWidget()
+        joystick_layout = QVBoxLayout(joystick_content)
+        joystick_layout.setContentsMargins(0, 0, 0, 0)
+        joystick_layout.setSpacing(6)
+        joystick_layout.addWidget(self.joystick_table)
+        joystick_controls = QHBoxLayout()
+        joystick_controls.setContentsMargins(0, 0, 0, 0)
+        joystick_controls.setSpacing(6)
+        self.joystick_up_button = QPushButton("Up")
+        self.joystick_down_button = QPushButton("Down")
+        self.joystick_properties_button = QPushButton("Properties")
+        self.joystick_up_button.clicked.connect(lambda: self._move_selected_joystick(-1))
+        self.joystick_down_button.clicked.connect(lambda: self._move_selected_joystick(1))
+        self.joystick_properties_button.clicked.connect(lambda: self.open_selected_joystick_properties())
+        joystick_controls.addWidget(self.joystick_up_button)
+        joystick_controls.addWidget(self.joystick_down_button)
+        joystick_controls.addWidget(self.joystick_properties_button)
+        joystick_controls.addStretch(1)
+        joystick_layout.addLayout(joystick_controls)
+        self.joystick_panel = self._panel("Joystick Order", joystick_content, subtitle=self._dashboard_text("joystick_order_hint"))
         self.joystick_panel_title = self.joystick_panel.title_label
         self.joystick_panel_subtitle = self.joystick_panel.subtitle_label
         self.joystick_panel_icon = self.joystick_panel.title_icon
@@ -1115,6 +1141,9 @@ class MainWindow(QMainWindow):
             self.rollback_button,
             self.export_config_button,
             self.import_config_button,
+            self.joystick_up_button,
+            self.joystick_down_button,
+            self.joystick_properties_button,
         ]:
             button.setDisabled(busy)
 
@@ -1157,14 +1186,42 @@ class MainWindow(QMainWindow):
     def scan_usb_speeds(self) -> None:
         self._run_async(self.controller.scan_usb_speeds, self._usb_speed_scan_finished, self._dashboard_text("busy_usb_speed_scan"))
 
-    def _usb_speed_scan_finished(self, count: int) -> None:
-        QMessageBox.information(
-            self,
-            self._dashboard_text("usb_speed_scan_title"),
-            self._dashboard_text("usb_speed_scan_done").format(count=count),
-        )
+    def _usb_speed_scan_finished(self, count: int, show_message: bool = True) -> None:
+        if show_message:
+            QMessageBox.information(
+                self,
+                self._dashboard_text("usb_speed_scan_title"),
+                self._dashboard_text("usb_speed_scan_done").format(count=count),
+            )
         if self.controller.last_report:
             self.update_report(self.controller.last_report)
+
+    def _initial_usb_speed_scan(self) -> None:
+        if self._busy_operations > 0:
+            QTimer.singleShot(1000, self._initial_usb_speed_scan)
+            return
+        self._run_async(
+            lambda: self.controller.scan_usb_speeds(force=False),
+            lambda count: self._usb_speed_scan_finished(count, show_message=False),
+            self._dashboard_text("busy_usb_speed_scan"),
+        )
+
+    def _poll_game_controllers(self) -> None:
+        signature = self.controller.game_controller_signature()
+        if signature == self._game_controller_signature:
+            return
+        self._game_controller_signature = signature
+        self.device_change_rescan_timer.start(350)
+
+    def _auto_scan_usb_after_device_change(self) -> None:
+        if self._busy_operations > 0:
+            self.device_change_rescan_timer.start(1000)
+            return
+        self._run_async(
+            lambda: self.controller.scan_usb_speeds(force=True),
+            lambda count: self._usb_speed_scan_finished(count, show_message=False),
+            self._dashboard_text("busy_usb_speed_scan"),
+        )
 
     def rollback(self) -> None:
         self._run_async(self.controller.rollback_last_restore, self._rollback_finished, self._dashboard_text("busy_rollback"))
@@ -1229,6 +1286,7 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "Cockpit Guardian", message)
 
     def update_report(self, report: CheckReport) -> None:
+        self._game_controller_signature = self.controller.game_controller_signature()
         self.status_title.setText(self._status_text(report.global_status).upper())
         self._apply_status_style(report.global_status)
         self._update_status_icons(report)
@@ -1299,6 +1357,9 @@ class MainWindow(QMainWindow):
         self.import_config_button.setText(self._dashboard_text("import"))
         self.export_config_button.setToolTip(self._dashboard_text("export_config_tooltip"))
         self.import_config_button.setToolTip(self._dashboard_text("import_config_tooltip"))
+        self.joystick_up_button.setText(self._dashboard_text("joystick_move_up"))
+        self.joystick_down_button.setText(self._dashboard_text("joystick_move_down"))
+        self.joystick_properties_button.setText(self._dashboard_text("joystick_properties"))
         self.logo_credit_label.setText(self._dashboard_text("logo_credit"))
         self.language_eng_button.setToolTip(self._dashboard_text("language_en_tooltip"))
         self.language_fr_button.setToolTip(self._dashboard_text("language_fr_tooltip"))
@@ -1522,16 +1583,51 @@ class MainWindow(QMainWindow):
             row = self.joystick_table.rowCount()
             self.joystick_table.insertRow(row)
             device = devices_by_name.get(name.lower())
-            self.joystick_table.setItem(row, 0, self._table_item(str(index)))
-            self.joystick_table.setItem(row, 1, self._table_item(name))
-            self.joystick_table.setItem(row, 2, self._table_item(saved_positions.get(name.lower(), "-")))
-            self.joystick_table.setItem(row, 3, self._table_item(self._usb_summary(device)))
+            game_order = index
+            if device and getattr(device, "hid", None):
+                game_order = device.hid.game_controller_order or device.hid.joystick_order or index
+            self._set_joystick_row(
+                row,
+                [str(game_order), name, saved_positions.get(name.lower(), "-"), self._usb_summary(device)],
+                game_order,
+            )
         if not order:
             self.joystick_table.insertRow(0)
-            self.joystick_table.setItem(0, 0, self._table_item("-"))
-            self.joystick_table.setItem(0, 1, self._table_item(report.joystick_order.message))
-            self.joystick_table.setItem(0, 2, self._table_item("-"))
-            self.joystick_table.setItem(0, 3, self._table_item("-"))
+            self._set_joystick_row(0, ["-", report.joystick_order.message, "-", "-"], None)
+
+    def _set_joystick_row(self, row: int, values: list[str], game_order: int | None) -> None:
+        for column, value in enumerate(values):
+            item = self._table_item(value)
+            if game_order is not None:
+                item.setData(Qt.ItemDataRole.UserRole, game_order)
+            self.joystick_table.setItem(row, column, item)
+
+    def _move_selected_joystick(self, delta: int) -> None:
+        if not self.joystick_table.move_current_row(delta):
+            QMessageBox.warning(self, "Cockpit Guardian", self._dashboard_text("joystick_select_first"))
+
+    def open_selected_joystick_properties(self, row: int | None = None) -> None:
+        selected_row = row if row is not None else self.joystick_table.currentRow()
+        game_order = self._joystick_row_game_order(selected_row)
+        if game_order is None:
+            QMessageBox.warning(self, "Cockpit Guardian", self._dashboard_text("joystick_select_first"))
+            return
+        if not self.controller.open_joystick_properties(game_order):
+            QMessageBox.warning(self, "Cockpit Guardian", self._dashboard_text("joystick_properties_failed"))
+
+    def _joystick_row_game_order(self, row: int | None) -> int | None:
+        if row is None or row < 0 or row >= self.joystick_table.rowCount():
+            return None
+        item = self.joystick_table.item(row, 0)
+        if not item or item.text() == "-":
+            return None
+        value = item.data(Qt.ItemDataRole.UserRole)
+        if value is None:
+            value = item.text()
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
 
     def _joystick_order_changed(self, order: list[str]) -> None:
         try:

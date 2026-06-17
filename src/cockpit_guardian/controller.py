@@ -8,6 +8,8 @@ from .check_engine import CheckEngine
 from .config_manager import ConfigManager
 from .models import CheckReport, DeviceKind, RestoreAction, RestoreReport, Settings, Snapshot
 from .services.device_detector import DeviceDetector
+from .services.directinput import read_directinput_game_controllers
+from .services.game_controller_properties import open_game_controller_properties
 from .services.joystick_manager import JoystickOrderManager
 from .services.restore_engine import RestoreEngine
 from .services.software_detector import SoftwareDetector
@@ -194,6 +196,29 @@ class AppController:
         self.logger.info("USB speed scan cached %d records", count)
         self.last_report = self.check_now()
         return count
+
+    def game_controller_signature(self) -> tuple[str, ...]:
+        return tuple(
+            "|".join(
+                [
+                    str(item.order),
+                    item.product_name,
+                    item.instance_name,
+                    item.vid or "",
+                    item.pid or "",
+                    item.instance_guid,
+                ]
+            )
+            for item in read_directinput_game_controllers()
+        )
+
+    def open_joystick_properties(self, game_controller_order: int) -> bool:
+        ok = open_game_controller_properties(game_controller_order)
+        if ok:
+            self.logger.info("Opened joystick properties for Windows game controller #%d", game_controller_order)
+        else:
+            self.logger.warning("Could not open joystick properties for Windows game controller #%d", game_controller_order)
+        return ok
 
     def _device_from_last_report(self, device_id: str):
         if not self.last_report:

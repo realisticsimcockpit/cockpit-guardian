@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from cockpit_guardian.models import DeviceBus, DeviceKind
+from cockpit_guardian.models import CockpitDevice, DeviceBus, DeviceKind
 from cockpit_guardian.services.device_detector import DeviceDetector, _guess_kind
 from cockpit_guardian.services.integration_notices import is_generic_usb_serial_bridge, serial_identity_notice
 
@@ -15,6 +15,31 @@ class FakePort:
 
 
 class DeviceDetectorTests(unittest.TestCase):
+    def test_usb_speed_scan_clears_device_caches(self):
+        class FakeUsbTopology:
+            def __init__(self):
+                self.force = None
+
+            def ensure_speed_cache(self, force=True):
+                self.force = force
+                return {"USBROOT(0)#USB(1)": object()}
+
+        detector = DeviceDetector()
+        detector._usb_topology = FakeUsbTopology()
+        detector._hid_cache = [CockpitDevice(id="hid-a", display_name="Wheel", bus=DeviceBus.HID)]
+        detector._hid_cache_at = 10.0
+        detector._serial_metadata_cache = {"COM3": {"friendly_name": "Arduino"}}
+        detector._serial_metadata_cache_at = 10.0
+
+        count = detector.scan_usb_speeds(force=False)
+
+        self.assertEqual(count, 1)
+        self.assertFalse(detector._usb_topology.force)
+        self.assertEqual(detector._hid_cache, [])
+        self.assertEqual(detector._hid_cache_at, 0.0)
+        self.assertEqual(detector._serial_metadata_cache, {})
+        self.assertEqual(detector._serial_metadata_cache_at, 0.0)
+
     def test_wind_name_wins_over_generic_ch340_bridge(self):
         kind = _guess_kind("Wind Simulator USB-SERIAL CH340", DeviceBus.SERIAL, "1A86", "7523")
 

@@ -103,7 +103,15 @@ class DeviceDetector:
         return self._usb_topology.annotate_devices(devices, include_windows_metadata=include_windows_metadata)
 
     def scan_usb_speeds(self, force: bool = True) -> int:
-        return len(self._usb_topology.ensure_speed_cache(force=force))
+        count = len(self._usb_topology.ensure_speed_cache(force=force))
+        self.clear_caches()
+        return count
+
+    def clear_caches(self) -> None:
+        self._hid_cache = []
+        self._hid_cache_at = 0.0
+        self._serial_metadata_cache = {}
+        self._serial_metadata_cache_at = 0.0
 
     def detect_serial_devices(self, include_windows_metadata: bool = False) -> list[CockpitDevice]:
         try:
