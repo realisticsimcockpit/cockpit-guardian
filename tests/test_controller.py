@@ -38,15 +38,19 @@ class FakeRestoreEngine:
 class FakeDetector:
     def __init__(self):
         self.deep_scan_values = []
+        self.devices = []
 
     def detect_all(self, include_windows_metadata=False):
         self.deep_scan_values.append(include_windows_metadata)
-        return []
+        return list(self.devices)
 
 
 class FakeJoystickManager:
+    def __init__(self):
+        self.current_order = []
+
     def read_current_order(self, devices):
-        return []
+        return list(self.current_order)
 
     def compare(self, expected, current):
         return JoystickOrderResult(expected=list(expected), current=list(current), ok=list(expected) == list(current))
@@ -118,6 +122,26 @@ class ControllerTests(unittest.TestCase):
 
             self.assertEqual(controller.load_snapshot().joystick_order, ["Pedals", "Wheel"])
 
+    def test_save_configuration_preserves_desired_joystick_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            controller, _, _ = _controller(tmp)
+            controller.config.create_snapshot("Rig", [], [], ["Pedals", "Wheel"])
+            controller.joystick_manager.current_order = ["Wheel", "Pedals"]
+
+            controller.save_configuration()
+
+            self.assertEqual(controller.load_snapshot().joystick_order, ["Pedals", "Wheel"])
+
+    def test_save_configuration_appends_new_joystick_after_desired_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            controller, _, _ = _controller(tmp)
+            controller.config.create_snapshot("Rig", [], [], ["Pedals", "Wheel"])
+            controller.joystick_manager.current_order = ["Wheel", "Button Box", "Pedals"]
+
+            controller.save_configuration()
+
+            self.assertEqual(controller.load_snapshot().joystick_order, ["Pedals", "Wheel", "Button Box"])
+
     def test_update_device_role_persists_snapshot_kind(self):
         with tempfile.TemporaryDirectory() as tmp:
             controller, _, _ = _controller(tmp)
@@ -137,6 +161,7 @@ class ControllerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             controller, check_engine, _ = _controller(tmp)
             check_engine.current_order = ["vJoy Device", "TWCS Throttle", "Wheel"]
+            controller.joystick_manager.current_order = ["vJoy Device", "TWCS Throttle", "Wheel"]
             controller.config.create_snapshot(
                 "Rig",
                 [
@@ -150,7 +175,7 @@ class ControllerTests(unittest.TestCase):
 
             controller.check_now()
 
-            self.assertEqual(controller.load_snapshot().joystick_order, ["vJoy Device", "TWCS Throttle", "Wheel"])
+            self.assertEqual(controller.load_snapshot().joystick_order, ["TWCS Throttle", "Wheel", "vJoy Device"])
 
 
 if __name__ == "__main__":

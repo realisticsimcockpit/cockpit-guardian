@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from functools import lru_cache
 
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal, Slot
 from PySide6.QtGui import QFont, QFontDatabase
 from PySide6.QtWidgets import QApplication, QLabel, QStyleFactory, QVBoxLayout, QWidget
 
@@ -41,8 +41,10 @@ STARTUP_STATUS_TEXT = {
         "windows": "Initializing Windows USB / HID / COM modules",
         "software": "Preparing SimHub and cockpit software detection",
         "interface": "Building dashboard interface",
-        "scan": "Preparing first Windows scan",
+        "scan_usb": "Scan USB",
+        "cockpit_checking": "Cockpit checking",
         "ready": "Cockpit Guardian ready",
+        "startup_failed": "Startup scan failed",
     },
     "fr": {
         "start": "Démarrage de Cockpit Guardian",
@@ -50,8 +52,10 @@ STARTUP_STATUS_TEXT = {
         "windows": "Initialisation des modules Windows USB / HID / COM",
         "software": "Préparation de SimHub et des logiciels cockpit",
         "interface": "Construction de l'interface tableau de bord",
-        "scan": "Préparation du premier scan Windows",
+        "scan_usb": "Scan USB",
+        "cockpit_checking": "Vérification cockpit",
         "ready": "Cockpit Guardian prêt",
+        "startup_failed": "Echec du scan de démarrage",
     },
 }
 
@@ -162,6 +166,65 @@ class StartupSplash(QWidget):
             self._asset_context = None
 
 
+class StartupScanWorker(QObject):
+    status_changed = Signal(str)
+    finished = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, controller: AppController) -> None:
+        super().__init__()
+        self.controller = controller
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            self.status_changed.emit("scan_usb")
+            self.controller.refresh_usb_speed_cache(force=False)
+            self.status_changed.emit("cockpit_checking")
+            self.controller.check_now()
+            self.status_changed.emit("ready")
+            self.finished.emit(self.controller)
+        except Exception as exc:
+            self.failed.emit(str(exc))
+
+
+class StartupUiBridge(QObject):
+    def __init__(
+        self,
+        splash: StartupSplash,
+        startup_thread: QThread,
+        controller: AppController,
+        state: dict[str, object],
+    ) -> None:
+        super().__init__()
+        self.splash = splash
+        self.startup_thread = startup_thread
+        self.controller = controller
+        self.state = state
+
+    @Slot(str)
+    def set_status(self, key: str) -> None:
+        self.splash.set_status(key)
+
+    @Slot(object)
+    def show_window(self, controller: AppController) -> None:
+        window = MainWindow(controller, run_startup_checks=False)
+        self.state["window"] = window
+        window.show()
+        self.splash.finish()
+        self.startup_thread.quit()
+
+    @Slot(str)
+    def show_window_after_failure(self, message: str) -> None:
+        self.controller.logger.warning("Startup scan failed: %s", message)
+        self.splash.set_status("startup_failed")
+        window = MainWindow(self.controller, run_startup_checks=True)
+        self.state["window"] = window
+        window.show()
+        self.splash.finish()
+        self.startup_thread.quit()
+
+
 def startup_language() -> str:
     try:
         return ConfigManager(AppPaths()).load_settings().language
@@ -227,11 +290,21 @@ def main() -> int:
     controller = build_controller(lambda key: (splash.set_status(key), app.processEvents()))
     splash.set_status("interface")
     app.processEvents()
-    window = MainWindow(controller)
-    splash.set_status("scan")
-    app.processEvents()
-    window.show()
-    splash.set_status("ready")
-    app.processEvents()
-    splash.finish()
+    state: dict[str, object] = {}
+    startup_thread = QThread()
+    startup_worker = StartupScanWorker(controller)
+    startup_worker.moveToThread(startup_thread)
+    startup_bridge = StartupUiBridge(splash, startup_thread, controller, state)
+
+    startup_thread.started.connect(startup_worker.run)
+    startup_worker.status_changed.connect(startup_bridge.set_status)
+    startup_worker.finished.connect(startup_bridge.show_window)
+    startup_worker.failed.connect(startup_bridge.show_window_after_failure)
+    startup_worker.finished.connect(startup_worker.deleteLater)
+    startup_worker.failed.connect(startup_worker.deleteLater)
+    startup_thread.finished.connect(startup_thread.deleteLater)
+    state["startup_thread"] = startup_thread
+    state["startup_worker"] = startup_worker
+    state["startup_bridge"] = startup_bridge
+    startup_thread.start()
     return app.exec()

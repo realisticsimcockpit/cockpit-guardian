@@ -42,6 +42,7 @@ class AppController:
         return self._capture_snapshot(settings)
 
     def _capture_snapshot(self, settings: Settings) -> Snapshot:
+        previous_snapshot = self.load_snapshot()
         deep_scan = self._deep_scan_for_operation(settings, persist_initial=True)
         devices = self.detector.detect_all(include_windows_metadata=deep_scan)
         software = [
@@ -52,7 +53,8 @@ class AppController:
             )
             if item.state.value != "Not detected" or item.required
         ]
-        joystick_order = self.joystick_manager.read_current_order(devices)
+        current_joystick_order = self.joystick_manager.read_current_order(devices)
+        joystick_order = self._merge_saved_joystick_order(previous_snapshot, current_joystick_order)
         snapshot = self.config.create_snapshot(settings.profile_name, devices, software, joystick_order)
         self.logger.info("Configuration snapshot saved with %d devices", len(devices))
         return snapshot
@@ -263,7 +265,17 @@ class AppController:
         current_names = {name.lower() for name in current}
         if not all(name.lower() in current_names for name in expected):
             return False
-        snapshot.joystick_order = current
+        snapshot.joystick_order = self._merge_saved_joystick_order(snapshot, current)
         self.config.save_snapshot(snapshot)
         self.logger.info("Incomplete joystick order repaired from Windows order: %s", ", ".join(current))
         return True
+
+    @staticmethod
+    def _merge_saved_joystick_order(snapshot: Snapshot | None, current_order: list[str]) -> list[str]:
+        saved_order = [name for name in (snapshot.joystick_order if snapshot else []) if name]
+        if not saved_order:
+            return list(current_order)
+        known = {name.lower() for name in saved_order}
+        merged = list(saved_order)
+        merged.extend(name for name in current_order if name.lower() not in known)
+        return merged

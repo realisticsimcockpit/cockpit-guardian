@@ -608,7 +608,7 @@ class Worker(QObject):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, controller: AppController) -> None:
+    def __init__(self, controller: AppController, run_startup_checks: bool = True) -> None:
         super().__init__()
         self.controller = controller
         self.settings = self.controller.load_settings()
@@ -689,8 +689,11 @@ class MainWindow(QMainWindow):
         self.device_change_rescan_timer = QTimer(self)
         self.device_change_rescan_timer.setSingleShot(True)
         self.device_change_rescan_timer.timeout.connect(self._auto_scan_usb_after_device_change)
-        QTimer.singleShot(250, self.check_now)
-        QTimer.singleShot(1200, self._initial_usb_speed_scan)
+        if self.controller.last_report:
+            QTimer.singleShot(0, lambda: self.update_report(self.controller.last_report))
+        if run_startup_checks:
+            QTimer.singleShot(250, self.check_now)
+            QTimer.singleShot(1200, self._initial_usb_speed_scan)
 
     def apply_theme(self) -> None:
         QApplication.instance().setStyleSheet(app_stylesheet(self.settings.theme))
@@ -1600,7 +1603,7 @@ class MainWindow(QMainWindow):
         return "..." + compact[-31:]
 
     def _update_joystick(self, report: CheckReport) -> None:
-        order = list(report.joystick_order.current or report.joystick_order.expected)
+        order = self._display_joystick_order(report)
         saved_positions = {name.lower(): str(index) for index, name in enumerate(report.joystick_order.expected, start=1)}
         devices_by_name = self._devices_by_joystick_name(report)
         self.joystick_table.setRowCount(0)
@@ -1619,6 +1622,15 @@ class MainWindow(QMainWindow):
         if not order:
             self.joystick_table.insertRow(0)
             self._set_joystick_row(0, ["-", report.joystick_order.message, "-", "-"], None)
+
+    @staticmethod
+    def _display_joystick_order(report: CheckReport) -> list[str]:
+        expected = [name for name in report.joystick_order.expected if name]
+        current = [name for name in report.joystick_order.current if name]
+        if not expected:
+            return current
+        known = {name.lower() for name in expected}
+        return expected + [name for name in current if name.lower() not in known]
 
     def _set_joystick_row(self, row: int, values: list[str], game_order: int | None) -> None:
         for column, value in enumerate(values):
