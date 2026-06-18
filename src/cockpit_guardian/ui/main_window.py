@@ -119,7 +119,7 @@ DASHBOARD_TEXT = {
         "device_headers": ["Device", "Role", "Status", "USB"],
         "joystick_order": "Joystick Order",
         "joystick_order_hint": "Use Up / Down to set desired order",
-        "joystick_headers": ["Win #", "Joystick", "Saved #", "USB"],
+        "joystick_headers": ["#", "Joystick", "Saved #", "USB"],
         "joystick_move_up": "Up",
         "joystick_move_down": "Down",
         "joystick_properties": "Properties",
@@ -274,7 +274,7 @@ DASHBOARD_TEXT = {
         "device_headers": ["Périphérique", "Rôle", "Statut", "USB"],
         "joystick_order": "Ordre joysticks",
         "joystick_order_hint": "Utilisez Monter / Descendre pour choisir l'ordre souhaité",
-        "joystick_headers": ["Win #", "Joystick", "Sauvé #", "USB"],
+        "joystick_headers": ["#", "Joystick", "Sauvé #", "USB"],
         "joystick_move_up": "Monter",
         "joystick_move_down": "Descendre",
         "joystick_properties": "Propriétés",
@@ -923,7 +923,7 @@ class MainWindow(QMainWindow):
         bottom_row.setSpacing(14)
 
         self.joystick_table = JoystickOrderTableWidget(0, 4)
-        self._set_table_headers(self.joystick_table, ["Win #", "Joystick", "Saved #", "USB"])
+        self._set_table_headers(self.joystick_table, ["#", "Joystick", "Saved #", "USB"])
         self._configure_table(self.joystick_table)
         self.joystick_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.joystick_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -1201,7 +1201,10 @@ class MainWindow(QMainWindow):
         self._run_async(self.controller.save_configuration, self._save_configuration_finished, self._dashboard_text("busy_save"))
 
     def _save_configuration_finished(self, _) -> None:
-        self.check_now()
+        if self.controller.last_report:
+            self.update_report(self.controller.last_report)
+        else:
+            self.check_now()
 
     def check_now(self) -> None:
         self._run_async(self.controller.check_now, self.update_report, self._dashboard_text("busy_check"))
@@ -1611,12 +1614,12 @@ class MainWindow(QMainWindow):
             row = self.joystick_table.rowCount()
             self.joystick_table.insertRow(row)
             device = devices_by_name.get(name.lower())
-            game_order = index
+            game_order = None
             if device and getattr(device, "hid", None):
                 game_order = device.hid.game_controller_order or device.hid.joystick_order or index
             self._set_joystick_row(
                 row,
-                [str(game_order), name, saved_positions.get(name.lower(), "-"), self._usb_summary(device)],
+                [str(index), name, saved_positions.get(name.lower(), "-"), self._usb_summary(device)],
                 game_order,
             )
         if not order:

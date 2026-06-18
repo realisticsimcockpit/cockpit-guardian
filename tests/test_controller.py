@@ -48,12 +48,18 @@ class FakeDetector:
 class FakeJoystickManager:
     def __init__(self):
         self.current_order = []
+        self.restore_calls = []
 
     def read_current_order(self, devices):
         return list(self.current_order)
 
     def compare(self, expected, current):
         return JoystickOrderResult(expected=list(expected), current=list(current), ok=list(expected) == list(current))
+
+    def restore(self, expected, backup_path, current_devices=None):
+        self.restore_calls.append((list(expected), backup_path, list(current_devices or [])))
+        self.current_order = list(expected)
+        return True, "Joystick order restored.", False
 
 
 class FakeSoftwareDetector:
@@ -131,6 +137,7 @@ class ControllerTests(unittest.TestCase):
             controller.save_configuration()
 
             self.assertEqual(controller.load_snapshot().joystick_order, ["Pedals", "Wheel"])
+            self.assertEqual(controller.joystick_manager.restore_calls[0][0], ["Pedals", "Wheel"])
 
     def test_save_configuration_appends_new_joystick_after_desired_order(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -39,7 +39,10 @@ class AppController:
 
     def save_configuration(self) -> Snapshot:
         settings = self.load_settings()
-        return self._capture_snapshot(settings)
+        snapshot = self._capture_snapshot(settings)
+        self._apply_joystick_order_to_windows(snapshot)
+        self.last_report = self.check_now()
+        return snapshot
 
     def _capture_snapshot(self, settings: Settings) -> Snapshot:
         previous_snapshot = self.load_snapshot()
@@ -225,6 +228,20 @@ class AppController:
         else:
             self.logger.warning("Could not open joystick properties for Windows game controller #%d", game_controller_order)
         return ok
+
+    def _apply_joystick_order_to_windows(self, snapshot: Snapshot) -> None:
+        desired = [name for name in snapshot.joystick_order if name]
+        current = self.joystick_manager.read_current_order(snapshot.devices)
+        if not desired or desired == current[: len(desired)]:
+            return
+        backup = self.config.make_backup("save_joystick_order", payload={"joystick_order": desired})
+        ok, message, requires_admin = self.joystick_manager.restore(desired, backup, snapshot.devices)
+        if not ok:
+            hint = " Start Cockpit Guardian as administrator and try again." if requires_admin else ""
+            raise RuntimeError(f"{message}{hint}")
+        if hasattr(self.detector, "clear_caches"):
+            self.detector.clear_caches()
+        self.logger.info("Joystick order applied during save: %s", message)
 
     def _device_from_last_report(self, device_id: str):
         if not self.last_report:

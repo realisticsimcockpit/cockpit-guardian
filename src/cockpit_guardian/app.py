@@ -4,16 +4,15 @@ import sys
 from functools import lru_cache
 
 from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal, Slot
-from PySide6.QtGui import QFont, QFontDatabase
+from PySide6.QtGui import QFont, QFontDatabase, QPixmap
 from PySide6.QtWidgets import QApplication, QLabel, QStyleFactory, QVBoxLayout, QWidget
 
 try:
-    from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
-    from PySide6.QtMultimediaWidgets import QVideoWidget
+    from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer, QVideoSink
 except Exception:  # pragma: no cover - depends on local Qt multimedia backend
     QAudioOutput = None
     QMediaPlayer = None
-    QVideoWidget = None
+    QVideoSink = None
 
 from .check_engine import CheckEngine
 from .config_manager import ConfigManager
@@ -30,7 +29,7 @@ from .services.telemetry import TelemetryService
 from .services.usb_health import UsbHealthMonitor
 from .services.usb_speed_scanner import USB_SPEED_SCAN_HELPER_ARG, run_usb_speed_scan_helper
 from .services.usb_topology import UsbTopologyDetector
-from .ui.assets import asset_icon, asset_path
+from .ui.assets import asset_icon, asset_path, asset_pixmap
 from .ui.main_window import MainWindow
 
 
@@ -81,32 +80,37 @@ class StartupSplash(QWidget):
         self._asset_context = None
         self._player = None
         self._audio = None
+        self._video_sink = None
+        self._visual_source = QPixmap()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        if QMediaPlayer is not None and QVideoWidget is not None and QAudioOutput is not None:
-            video = QVideoWidget()
-            video.setAspectRatioMode(Qt.AspectRatioMode.KeepAspectRatioByExpanding)
-            layout.addWidget(video)
+        self.visual_label = QLabel()
+        self.visual_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.visual_label.setStyleSheet("background: #000000;")
+        layout.addWidget(self.visual_label)
+        fallback = asset_pixmap("asset_preview.png")
+        if fallback.isNull():
+            fallback = asset_pixmap("brand_lockup.png")
+        self._set_visual_pixmap(fallback)
+        if QMediaPlayer is not None and QVideoSink is not None and QAudioOutput is not None:
             self._asset_context = asset_path("splash_screen.mp4")
             path = self._asset_context.__enter__()
             self._player = QMediaPlayer(self)
             self._audio = QAudioOutput(self)
+            self._video_sink = QVideoSink(self)
+            self._video_sink.videoFrameChanged.connect(self._video_frame_changed)
             self._audio.setMuted(True)
             self._player.setAudioOutput(self._audio)
-            self._player.setVideoOutput(video)
+            self._player.setVideoSink(self._video_sink)
             self._player.setSource(QUrl.fromLocalFile(str(path)))
             self._player.mediaStatusChanged.connect(self._media_status_changed)
-        else:
-            fallback = QLabel("COCKPIT GUARDIAN")
-            fallback.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            fallback.setFont(self._retro_font(11))
-            fallback.setStyleSheet(f"color: {SPLASH_TEXT_COLOR}; letter-spacing: 1px;")
-            layout.addWidget(fallback)
         self.status_label = QLabel(self)
         self.status_label.setObjectName("StartupStatus")
         self.status_label.setFont(self._retro_font(7))
-        self.status_label.setStyleSheet(f"color: {SPLASH_TEXT_COLOR}; background: transparent; letter-spacing: 1.2px;")
+        self.status_label.setStyleSheet(
+            f"color: {SPLASH_TEXT_COLOR}; background: rgba(0, 0, 0, 160); padding: 4px 7px; letter-spacing: 1.2px;"
+        )
         self.status_label.setText(self._status_text("start"))
         self.status_label.adjustSize()
         self._position_status_label()
@@ -140,7 +144,35 @@ class StartupSplash(QWidget):
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt override
         super().resizeEvent(event)
+        self._refresh_visual_pixmap()
         self._position_status_label()
+
+    def _video_frame_changed(self, frame) -> None:
+        if not frame or not frame.isValid():
+            return
+        image = frame.toImage()
+        if image.isNull():
+            return
+        self._set_visual_pixmap(QPixmap.fromImage(image))
+
+    def _set_visual_pixmap(self, pixmap: QPixmap) -> None:
+        if pixmap.isNull():
+            return
+        self._visual_source = pixmap
+        self._refresh_visual_pixmap()
+
+    def _refresh_visual_pixmap(self) -> None:
+        if self._visual_source.isNull() or self.visual_label.width() <= 0 or self.visual_label.height() <= 0:
+            return
+        target_size = self.visual_label.size()
+        scaled = self._visual_source.scaled(
+            target_size,
+            Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        x = max(0, (scaled.width() - target_size.width()) // 2)
+        y = max(0, (scaled.height() - target_size.height()) // 2)
+        self.visual_label.setPixmap(scaled.copy(x, y, target_size.width(), target_size.height()))
 
     def _position_status_label(self) -> None:
         margin = 28
