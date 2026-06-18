@@ -32,7 +32,7 @@ jobs:
         run: .\packaging\windows\build_installer.ps1 -DeepClean
 
       - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: CockpitGuardianSetup
           path: dist\CockpitGuardianSetup-*.exe
