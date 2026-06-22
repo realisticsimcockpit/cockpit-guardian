@@ -119,7 +119,7 @@ DASHBOARD_TEXT = {
         "device_headers": ["Device", "Role", "Status", "USB"],
         "joystick_order": "Joystick Order",
         "joystick_order_hint": "Use Up / Down to set desired order",
-        "joystick_headers": ["#", "Joystick", "Saved #", "USB"],
+        "joystick_headers": ["Order", "Joystick", "USB"],
         "joystick_move_up": "Up",
         "joystick_move_down": "Down",
         "joystick_properties": "Properties",
@@ -274,7 +274,7 @@ DASHBOARD_TEXT = {
         "device_headers": ["Périphérique", "Rôle", "Statut", "USB"],
         "joystick_order": "Ordre joysticks",
         "joystick_order_hint": "Utilisez Monter / Descendre pour choisir l'ordre souhaité",
-        "joystick_headers": ["#", "Joystick", "Sauvé #", "USB"],
+        "joystick_headers": ["Ordre", "Joystick", "USB"],
         "joystick_move_up": "Monter",
         "joystick_move_down": "Descendre",
         "joystick_properties": "Propriétés",
@@ -494,6 +494,7 @@ class JoystickOrderTableWidget(SeparatorTableWidget):
             self.insertRow(row)
             for column, item in enumerate(values):
                 self.setItem(row, column, item)
+        self.renumber_order_column()
         self.setCurrentCell(target_row, 0)
 
     def _row_items(self) -> list[list[QTableWidgetItem]]:
@@ -517,6 +518,12 @@ class JoystickOrderTableWidget(SeparatorTableWidget):
             for row in range(self.rowCount())
             if self.item(row, 1) and self.item(row, 1).text() and self.item(row, 0) and self.item(row, 0).text() != "-"
         ]
+
+    def renumber_order_column(self) -> None:
+        for row in range(self.rowCount()):
+            item = self.item(row, 0)
+            if item is not None and item.text() != "-":
+                item.setText(str(row + 1))
 
 
 class BusyOverlay(QWidget):
@@ -708,7 +715,7 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "device_table"):
             return
         self._set_table_column_widths(self.device_table, [0.24, 0.20, 0.28, 0.28])
-        self._set_table_column_widths(self.joystick_table, [0.08, 0.34, 0.12, 0.46])
+        self._set_table_column_widths(self.joystick_table, [0.14, 0.40, 0.46])
         if hasattr(self, "usb_table"):
             self._set_table_column_widths(self.usb_table, [0.20, 0.16, 0.26, 0.38])
         if hasattr(self, "priority_table"):
@@ -922,8 +929,8 @@ class MainWindow(QMainWindow):
         bottom_row = QHBoxLayout()
         bottom_row.setSpacing(14)
 
-        self.joystick_table = JoystickOrderTableWidget(0, 4)
-        self._set_table_headers(self.joystick_table, ["#", "Joystick", "Saved #", "USB"])
+        self.joystick_table = JoystickOrderTableWidget(0, 3)
+        self._set_table_headers(self.joystick_table, ["Order", "Joystick", "USB"])
         self._configure_table(self.joystick_table)
         self.joystick_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.joystick_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -1607,7 +1614,6 @@ class MainWindow(QMainWindow):
 
     def _update_joystick(self, report: CheckReport) -> None:
         order = self._display_joystick_order(report)
-        saved_positions = {name.lower(): str(index) for index, name in enumerate(report.joystick_order.expected, start=1)}
         devices_by_name = self._devices_by_joystick_name(report)
         self.joystick_table.setRowCount(0)
         for index, name in enumerate(order, start=1):
@@ -1619,12 +1625,12 @@ class MainWindow(QMainWindow):
                 game_order = device.hid.game_controller_order or device.hid.joystick_order or index
             self._set_joystick_row(
                 row,
-                [str(index), name, saved_positions.get(name.lower(), "-"), self._usb_summary(device)],
+                [str(index), name, self._usb_summary(device)],
                 game_order,
             )
         if not order:
             self.joystick_table.insertRow(0)
-            self._set_joystick_row(0, ["-", report.joystick_order.message, "-", "-"], None)
+            self._set_joystick_row(0, ["-", report.joystick_order.message, "-"], None)
 
     @staticmethod
     def _display_joystick_order(report: CheckReport) -> list[str]:

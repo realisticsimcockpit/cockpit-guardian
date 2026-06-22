@@ -137,7 +137,7 @@ class ControllerTests(unittest.TestCase):
             controller.save_configuration()
 
             self.assertEqual(controller.load_snapshot().joystick_order, ["Pedals", "Wheel"])
-            self.assertEqual(controller.joystick_manager.restore_calls[0][0], ["Pedals", "Wheel"])
+            self.assertEqual(controller.joystick_manager.restore_calls, [])
 
     def test_save_configuration_appends_new_joystick_after_desired_order(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -29,7 +29,7 @@ from .services.telemetry import TelemetryService
 from .services.usb_health import UsbHealthMonitor
 from .services.usb_speed_scanner import USB_SPEED_SCAN_HELPER_ARG, run_usb_speed_scan_helper
 from .services.usb_topology import UsbTopologyDetector
-from .ui.assets import asset_icon, asset_path, asset_pixmap
+from .ui.assets import asset_icon, asset_path
 from .ui.main_window import MainWindow
 
 
@@ -89,12 +89,8 @@ class StartupSplash(QWidget):
         self.visual_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.visual_label.setStyleSheet("background: #000000;")
         layout.addWidget(self.visual_label)
-        fallback = asset_pixmap("asset_preview.png")
-        if fallback.isNull():
-            fallback = asset_pixmap("brand_lockup.png")
-        self._set_visual_pixmap(fallback)
         if QMediaPlayer is not None and QVideoSink is not None and QAudioOutput is not None:
-            self._asset_context = asset_path("splash_screen.mp4")
+            self._asset_context = asset_path("spash_screen.mp4")
             path = self._asset_context.__enter__()
             self._player = QMediaPlayer(self)
             self._audio = QAudioOutput(self)
